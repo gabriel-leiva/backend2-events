@@ -1,0 +1,20 @@
+{
+  "name": "backend2-events",
+  "version": "1.0.0",
+  "description": "API REST para plataforma de eventos e inscripciones",
+  "keywords": [],
+  "license": "ISC",
+  "author": "Gabriel Leiva",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "mongoose": "^9.9.5"
+  },
+  "devDependencies": {}
+}
