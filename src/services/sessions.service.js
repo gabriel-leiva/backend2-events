@@ -10,10 +10,14 @@ export const registerUser = async ({
     password
 }) => {
     if (
-        !first_name?.trim() ||
-        !last_name?.trim() ||
-        !email?.trim() ||
-        !password
+    typeof first_name !== "string" ||
+    typeof last_name !== "string" ||
+    typeof email !== "string" ||
+    typeof password !== "string" ||
+    !first_name.trim() ||
+    !last_name.trim() ||
+    !email.trim() ||
+    !password.trim()
     ) {
         const error = new Error("Faltan campos obligatorios");
         error.statusCode = 400;

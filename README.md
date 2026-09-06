@@ -158,6 +158,34 @@ La contraseña debe tener al menos 8 caracteres y se almacena hasheada con bcryp
 
 El rol se asigna automáticamente como `user` y no puede modificarse desde el registro público.
 
+### Probar con Thunder Client
+
+1. Abrir Thunder Client en Visual Studio Code.
+2. Crear una nueva request.
+3. Seleccionar el método `POST`.
+4. Usar la siguiente URL:
+
+`http://localhost:8080/api/sessions/register`
+
+5. Ir a `Body > JSON` y enviar:
+
+```json
+{
+  "first_name": "Ana",
+  "last_name": "Pérez",
+  "email": "Ana@Mail.com ",
+  "password": "Secreta123"
+}
+```
+
+Resultados esperados:
+
+- `201 Created`: usuario registrado correctamente.
+- `400 Bad Request`: campos faltantes, email inválido o contraseña demasiado corta.
+- `409 Conflict`: el email ya se encuentra registrado.
+
+En un registro exitoso, el email se devuelve normalizado y la respuesta no incluye el campo `password`.
+
 ### Respuesta exitosa
 
 Código HTTP: `201`
@@ -206,3 +234,25 @@ Email ya registrado:
 }
 ```
 
+## Evidencias de funcionamiento
+
+### Registro exitoso
+
+La siguiente captura muestra un registro exitoso mediante `POST /api/sessions/register`.
+
+Se puede observar:
+
+- respuesta `201 Created`;
+- email normalizado;
+- rol asignado como `user`;
+- ausencia del campo `password` en la respuesta.
+
+![Registro exitoso](docs/evidencias/registro-exitoso.png)
+
+### Contraseña hasheada en MongoDB
+
+La siguiente captura muestra el usuario persistido en MongoDB con la contraseña protegida mediante bcrypt.
+
+La contraseña no se almacena en texto plano.
+
+![Contraseña hasheada en MongoDB](docs/evidencias/password-hasheada-mongodb.png)
