@@ -7,7 +7,7 @@ export const getSessionsStatus = (req, res) => {
     });
 };
 
-export const register = async (req, res) => {
+export const register = async (req, res, next) => {
     try {
         const user = await registerUser(req.body);
 
@@ -16,11 +16,6 @@ export const register = async (req, res) => {
             payload: user
         });
     } catch (error) {
-        res.status(error.statusCode || 500).json({
-            status: "error",
-            message: error.statusCode
-                ? error.message
-                : "Error interno del servidor"
-        });
+        next(error);
     }
 };
