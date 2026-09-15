@@ -1,5 +1,12 @@
-import { getUserByEmail, saveUser } from "../repositories/users.repository.js";
-import { createHash } from "../utils/hash.js";
+import {
+    getUserByEmail,
+    saveUser
+} from "../repositories/users.repository.js";
+
+import {
+    createHash,
+    isValidPassword
+} from "../utils/hash.js";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -10,14 +17,14 @@ export const registerUser = async ({
     password
 }) => {
     if (
-    typeof first_name !== "string" ||
-    typeof last_name !== "string" ||
-    typeof email !== "string" ||
-    typeof password !== "string" ||
-    !first_name.trim() ||
-    !last_name.trim() ||
-    !email.trim() ||
-    !password.trim()
+        typeof first_name !== "string" ||
+        typeof last_name !== "string" ||
+        typeof email !== "string" ||
+        typeof password !== "string" ||
+        !first_name.trim() ||
+        !last_name.trim() ||
+        !email.trim() ||
+        !password.trim()
     ) {
         const error = new Error("Faltan campos obligatorios");
         error.statusCode = 400;
@@ -64,5 +71,49 @@ export const registerUser = async ({
         last_name: newUser.last_name,
         email: newUser.email,
         role: newUser.role
+    };
+};
+
+
+export const loginUser = async ({
+    email,
+    password
+}) => {
+    if (
+        typeof email !== "string" ||
+        typeof password !== "string" ||
+        !email.trim() ||
+        !password.trim()
+    ) {
+        const error = new Error("Faltan campos obligatorios");
+        error.statusCode = 400;
+        throw error;
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const user = await getUserByEmail(normalizedEmail);
+
+    if (!user) {
+        const error = new Error("Credenciales inválidas");
+        error.statusCode = 401;
+        throw error;
+    }
+
+    const validPassword = await isValidPassword(
+        password,
+        user.password
+    );
+
+    if (!validPassword) {
+        const error = new Error("Credenciales inválidas");
+        error.statusCode = 401;
+        throw error;
+    }
+
+    return {
+        id: user._id,
+        email: user.email,
+        role: user.role
     };
 };
