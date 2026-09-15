@@ -374,7 +374,7 @@ El backend:
 }
 ```
 
-El JWT contiene únicamente:
+El payload de usuario incluido en el JWT contiene:
 
 ```json
 {
@@ -383,6 +383,8 @@ El JWT contiene únicamente:
   "role": "user"
 }
 ```
+
+El JWT incorpora además los claims temporales utilizados para controlar su emisión y expiración.
 
 El token se almacena en una cookie llamada:
 
@@ -566,7 +568,7 @@ La generación y verificación de JWT se encuentra centralizada en:
 src/utils/jwt.js
 ```
 
-Los JWT contienen información mínima del usuario:
+El payload de usuario contiene información mínima:
 
 ```json
 {
@@ -576,7 +578,7 @@ Los JWT contienen información mínima del usuario:
 }
 ```
 
-No contienen:
+No contiene:
 
 - password;
 - hash de password;
@@ -594,6 +596,8 @@ La duración del token se configura mediante:
 ```env
 JWT_EXPIRES_IN=
 ```
+
+La librería JWT agrega los claims necesarios para controlar la emisión y expiración del token.
 
 ---
 
@@ -696,6 +700,7 @@ Se verificaron los siguientes casos:
 13. Logout exitoso.
 14. `/current` después del logout devuelve `401`.
 15. Registro, persistencia y autenticación funcionando con MongoDB Atlas.
+16. Login sin body devuelve `400` con mensaje de campos obligatorios.
 
 ---
 
