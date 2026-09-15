@@ -15,7 +15,7 @@ export const registerUser = async ({
     last_name,
     email,
     password
-}) => {
+} = {}) => {
     if (
         typeof first_name !== "string" ||
         typeof last_name !== "string" ||
@@ -78,7 +78,7 @@ export const registerUser = async ({
 export const loginUser = async ({
     email,
     password
-}) => {
+} = {}) => {
     if (
         typeof email !== "string" ||
         typeof password !== "string" ||
