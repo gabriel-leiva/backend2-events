@@ -152,6 +152,12 @@ backend2-events/
 │
 ├── docs/
 │   └── evidencias/
+│       ├── registro-exitoso.png
+│       ├── password-hasheada-mongodb.png
+│       ├── login-exitoso.png
+│       ├── login-cookie.png
+│       ├── current-autenticado.png
+│       └── current-sin-cookie.png
 │
 ├── .env.example
 ├── .gitignore
@@ -421,7 +427,7 @@ Por seguridad, el backend devuelve el mismo mensaje tanto si el email no existe 
 
 ## GET `/api/sessions/current`
 
-Ruta protegida que permite consultar el usuario autenticado.
+Ruta protegida que permite consultar al usuario autenticado.
 
 No es necesario volver a enviar email y contraseña.
 
@@ -767,11 +773,84 @@ Se puede observar:
 
 ## Contraseña hasheada en MongoDB
 
-La siguiente captura muestra un usuario persistido con la contraseña protegida mediante bcrypt.
+La siguiente captura muestra un usuario persistido en MongoDB con la contraseña protegida mediante bcrypt.
 
 La contraseña no se almacena en texto plano.
 
 ![Contraseña hasheada en MongoDB](docs/evidencias/password-hasheada-mongodb.png)
+
+---
+
+## Login exitoso
+
+La siguiente captura muestra un inicio de sesión exitoso mediante:
+
+```http
+POST /api/sessions/login
+```
+
+Se puede observar una respuesta `200 OK` con el mensaje:
+
+```text
+Login correcto
+```
+
+![Login exitoso](docs/evidencias/login-exitoso.png)
+
+---
+
+## Cookie de autenticación
+
+La siguiente captura muestra la cookie `currentUser` generada después de un login exitoso.
+
+La cookie contiene el JWT que se utiliza para autenticar las peticiones posteriores.
+
+![Cookie de autenticación](docs/evidencias/login-cookie.png)
+
+---
+
+## Usuario autenticado
+
+La siguiente captura muestra la ruta protegida:
+
+```http
+GET /api/sessions/current
+```
+
+respondiendo `200 OK` cuando existe una sesión válida.
+
+La respuesta incluye únicamente:
+
+- `id`;
+- `email`;
+- `role`.
+
+No se devuelve `password`.
+
+![Current autenticado](docs/evidencias/current-autenticado.png)
+
+---
+
+## Acceso sin sesión
+
+La siguiente captura muestra la ruta:
+
+```http
+GET /api/sessions/current
+```
+
+respondiendo `401 Unauthorized` después del logout, cuando ya no existe una cookie de autenticación válida.
+
+La respuesta es:
+
+```json
+{
+  "status": "error",
+  "message": "No autenticado"
+}
+```
+
+![Current sin cookie](docs/evidencias/current-sin-cookie.png)
 
 ---
 
@@ -785,6 +864,8 @@ node_modules/
 ```
 
 Esto evita publicar dependencias locales y credenciales privadas.
+
+El archivo `.env.example` sí se incluye en el repositorio como referencia de configuración.
 
 ---
 
