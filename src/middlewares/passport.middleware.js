@@ -4,7 +4,8 @@ import passport from "passport";
 export const authenticatePassport = (
     strategy,
     defaultMessage = "No autenticado",
-    defaultStatusCode = 401
+    defaultStatusCode = 401,
+    usePassportMessage = true
 ) => {
     return (req, res, next) => {
         passport.authenticate(
@@ -18,14 +19,16 @@ export const authenticatePassport = (
                 }
 
                 if (!user) {
-                    const authError = new Error(
-                        info?.message || defaultMessage
-                    );
+                    const message = usePassportMessage
+                        ? info?.message || defaultMessage
+                        : defaultMessage;
 
-                    authError.statusCode =
-                        info?.statusCode ||
-                        status ||
-                        defaultStatusCode;
+                    const statusCode = usePassportMessage
+                        ? info?.statusCode || status || defaultStatusCode
+                        : defaultStatusCode;
+
+                    const authError = new Error(message);
+                    authError.statusCode = statusCode;
 
                     return next(authError);
                 }

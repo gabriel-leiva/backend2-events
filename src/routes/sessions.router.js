@@ -30,7 +30,7 @@ router.post(
 
 router.get(
     "/current",
-    authenticatePassport("current", "No autenticado", 401),
+    authenticatePassport("current", "No autenticado", 401, false),
     current
 );
 
