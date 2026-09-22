@@ -67,7 +67,11 @@ export const current = (req, res) => {
 };
 
 export const logout = (req, res) => {
-    res.clearCookie("currentUser");
+    res.clearCookie("currentUser", {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: config.nodeEnv === "production"
+    });
 
     res.status(200).json({
         status: "success",
