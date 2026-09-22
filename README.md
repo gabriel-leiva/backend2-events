@@ -559,11 +559,19 @@ La contraseña no se devuelve en las respuestas de la API.
 
 ## JWT
 
-La generación y verificación de JWT se encuentra centralizada en:
+La generación de JWT se encuentra centralizada en:
 
 ```text
 src/utils/jwt.js
 ```
+
+La validación del JWT utilizado por `/api/sessions/current` se realiza mediante la estrategia `current` de Passport, configurada con `passport-jwt` en:
+
+```text
+src/config/passport.config.js
+```
+
+Esta estrategia obtiene el token desde la cookie `currentUser` y valida su firma utilizando `JWT_SECRET`.
 
 El payload de usuario contiene información mínima:
 
@@ -649,8 +657,9 @@ config/passport.config.js
   register, login y current
 
 middlewares/passport.middleware.js
-→ ejecuta las estrategias de Passport y mantiene
-  el formato de errores de la API
+→ encapsula passport.authenticate() para ejecutar las estrategias
+  register, login y current con session: false, manteniendo
+  los códigos HTTP y el formato de errores de la API
 
 controllers/sessions.controller.js
 → arma las respuestas HTTP;
