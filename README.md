@@ -27,6 +27,9 @@ Actualmente incluye:
 - bcrypt
 - JSON Web Token
 - cookie-parser
+- Passport.js
+- passport-local
+- passport-jwt
 - JavaScript con módulos ESM
 - Thunder Client para pruebas de endpoints
 - Git y GitHub
@@ -117,7 +120,8 @@ backend2-events/
 │   │
 │   ├── config/
 │   │   ├── config.js
-│   │   └── database.js
+│   │   ├── database.js
+│   │   └── passport.config.js
 │   │
 │   ├── routes/
 │   │   ├── health.router.js
@@ -128,9 +132,6 @@ backend2-events/
 │   │   ├── health.controller.js
 │   │   ├── events.controller.js
 │   │   └── sessions.controller.js
-│   │
-│   ├── services/
-│   │   └── sessions.service.js
 │   │
 │   ├── repositories/
 │   │   └── users.repository.js
@@ -143,7 +144,7 @@ backend2-events/
 │   │   └── Event.js
 │   │
 │   ├── middlewares/
-│   │   ├── auth.middleware.js
+│   │   ├── passport.middleware.js
 │   │   └── error.middleware.js
 │   │
 │   └── utils/
@@ -152,12 +153,6 @@ backend2-events/
 │
 ├── docs/
 │   └── evidencias/
-│       ├── registro-exitoso.png
-│       ├── password-hasheada-mongodb.png
-│       ├── login-exitoso.png
-│       ├── login-cookie.png
-│       ├── current-autenticado.png
-│       └── current-sin-cookie.png
 │
 ├── .env.example
 ├── .gitignore
@@ -433,13 +428,15 @@ Ruta protegida que permite consultar al usuario autenticado.
 
 No es necesario volver a enviar email y contraseña.
 
-El middleware de autenticación:
+La estrategia `current` de Passport:
 
-1. lee la cookie `currentUser`;
-2. obtiene el JWT;
-3. verifica su firma y expiración;
-4. almacena el payload en `req.user`;
+1. lee el JWT desde la cookie `currentUser`;
+2. valida la firma y expiración del token;
+3. identifica al usuario autenticado;
+4. deja sus datos disponibles en `req.user`;
 5. permite continuar hacia el controller.
+
+La ruta utiliza Passport con `session: false`, ya que la autenticación del proyecto se mantiene mediante JWT y cookies.
 
 ### Request
 
@@ -624,16 +621,16 @@ El flag `httpOnly` impide que JavaScript del navegador pueda leer directamente e
 
 # Arquitectura
 
-El proyecto utiliza separación de responsabilidades.
+El proyecto utiliza separación de responsabilidades y centraliza la autenticación mediante Passport.js.
 
-El flujo de registro y login sigue:
+El flujo de autenticación queda organizado de la siguiente manera:
 
 ```text
 Route
   ↓
-Controller
+Passport Strategy
   ↓
-Service
+Controller
   ↓
 Repository
   ↓
@@ -647,20 +644,59 @@ MongoDB Atlas
 Responsabilidades principales:
 
 ```text
+config/passport.config.js
+→ centraliza las estrategias de autenticación:
+  register, login y current
+
+middlewares/passport.middleware.js
+→ ejecuta las estrategias de Passport y mantiene
+  el formato de errores de la API
+
+controllers/sessions.controller.js
+→ arma las respuestas HTTP;
+  en login genera el JWT y configura la cookie currentUser
+
+repositories/users.repository.js
+→ abstrae el acceso a los datos de usuarios
+
+dao/users.dao.js
+→ realiza las operaciones con el modelo de usuario
+
 utils/hash.js
 → hashing y comparación de contraseñas
 
 utils/jwt.js
-→ generación y verificación de JWT
-
-middlewares/auth.middleware.js
-→ autenticación de rutas protegidas
+→ generación de JWT
 
 middlewares/error.middleware.js
 → manejo centralizado de errores
 ```
 
-La lógica de autenticación no se encuentra directamente en las rutas ni en `app.js`.
+La lógica de autenticación no se encuentra directamente en `app.js`.
+
+`app.js` únicamente inicializa Passport mediante:
+
+```javascript
+app.use(passport.initialize());
+```
+
+Las estrategias están centralizadas en:
+
+```text
+src/config/passport.config.js
+```
+
+Esto permite incorporar nuevas estrategias de autenticación en el futuro, como Google o GitHub, sin agregar la lógica de esas estrategias directamente en `app.js`.
+
+Passport.js no reemplaza a JWT, bcrypt ni las cookies.
+
+En este proyecto:
+
+- `register` utiliza una estrategia local para validar y crear usuarios.
+- `login` utiliza una estrategia local para validar credenciales.
+- `current` utiliza una estrategia JWT para validar al usuario autenticado desde la cookie `currentUser`.
+- El controller de login genera el JWT después de una autenticación exitosa.
+- Passport trabaja con `session: false`, ya que la autenticación se mantiene mediante JWT y cookies.
 
 ---
 
@@ -683,24 +719,29 @@ Principales códigos utilizados:
 
 # Pruebas realizadas
 
-Se verificaron los siguientes casos:
+Se verificaron los siguientes casos con la autenticación centralizada mediante Passport.js:
 
-1. Registro exitoso.
-2. Normalización del email.
+1. Registro exitoso mediante la estrategia `register`.
+2. Normalización del email durante el registro.
 3. Contraseña almacenada mediante bcrypt.
-4. Respuesta de registro sin password.
-5. Rechazo de email duplicado.
-6. Login exitoso.
-7. Login con email inexistente.
-8. Login con contraseña incorrecta.
-9. Creación de cookie `currentUser`.
-10. `/current` autenticado devuelve `200`.
+4. Respuesta de registro sin `password`.
+5. Registro con email duplicado devuelve `409`.
+6. Login exitoso mediante la estrategia `login`.
+7. Login con credenciales inválidas devuelve `401`.
+8. Creación de la cookie `currentUser` después del login.
+9. `/current` autenticado mediante la estrategia `current` devuelve `200`.
+10. `/current` devuelve únicamente `id`, `email` y `role`.
 11. `/current` sin cookie devuelve `401`.
 12. `/current` con JWT manipulado devuelve `401`.
 13. Logout exitoso.
 14. `/current` después del logout devuelve `401`.
 15. Registro, persistencia y autenticación funcionando con MongoDB Atlas.
-16. Login sin body devuelve `400` con mensaje de campos obligatorios.
+
+El flujo principal verificado fue:
+
+```text
+register → login → current → logout → current 401
+```
 
 ---
 

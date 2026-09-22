@@ -8,14 +8,32 @@ import {
     logout
 } from "../controllers/sessions.controller.js";
 
-import { authMiddleware } from "../middlewares/auth.middleware.js";
+import {
+    authenticatePassport
+} from "../middlewares/passport.middleware.js";
 
 const router = Router();
 
 router.get("/", getSessionsStatus);
-router.post("/register", register);
-router.post("/login", login);
-router.get("/current", authMiddleware, current);
+
+router.post(
+    "/register",
+    authenticatePassport("register", "Error al registrar usuario", 400),
+    register
+);
+
+router.post(
+    "/login",
+    authenticatePassport("login", "Credenciales inválidas", 401),
+    login
+);
+
+router.get(
+    "/current",
+    authenticatePassport("current", "No autenticado", 401),
+    current
+);
+
 router.post("/logout", logout);
 
 export default router;

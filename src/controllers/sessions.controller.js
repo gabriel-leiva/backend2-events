@@ -1,8 +1,3 @@
-import {
-    registerUser,
-    loginUser
-} from "../services/sessions.service.js";
-
 import { generateToken } from "../utils/jwt.js";
 import { config } from "../config/config.js";
 
@@ -15,45 +10,40 @@ export const getSessionsStatus = (req, res) => {
 };
 
 
-export const register = async (req, res, next) => {
-    try {
-        const user = await registerUser(req.body);
-
-        res.status(201).json({
-            status: "success",
-            payload: user
-        });
-    } catch (error) {
-        next(error);
-    }
+export const register = (req, res) => {
+    res.status(201).json({
+        status: "success",
+        payload: {
+            id: req.user._id,
+            first_name: req.user.first_name,
+            last_name: req.user.last_name,
+            email: req.user.email,
+            role: req.user.role
+        }
+    });
 };
 
 
-export const login = async (req, res, next) => {
-    try {
-        const user = await loginUser(req.body);
+export const login = (req, res) => {
+    const token = generateToken({
+        id: req.user._id,
+        email: req.user.email,
+        role: req.user.role
+    });
 
-        const token = generateToken({
-            id: user.id,
-            email: user.email,
-            role: user.role
-        });
+    res.cookie("currentUser", token, {
+        httpOnly: true,
+        sameSite: "lax",
+        maxAge: 3600000,
+        secure: config.nodeEnv === "production"
+    });
 
-        res.cookie("currentUser", token, {
-            httpOnly: true,
-            sameSite: "lax",
-            maxAge: 3600000,
-            secure: config.nodeEnv === "production"
-        });
-
-        res.status(200).json({
-            status: "success",
-            message: "Login correcto"
-        });
-    } catch (error) {
-        next(error);
-    }
+    res.status(200).json({
+        status: "success",
+        message: "Login correcto"
+    });
 };
+
 
 export const current = (req, res) => {
     res.status(200).json({
@@ -65,6 +55,7 @@ export const current = (req, res) => {
         }
     });
 };
+
 
 export const logout = (req, res) => {
     res.clearCookie("currentUser", {
