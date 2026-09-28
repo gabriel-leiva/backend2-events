@@ -280,11 +280,11 @@ En resumen:
 
 | Acción | user | organizer | admin |
 |---|---:|---:|---:|
-| Consultar eventos públicos | ✅ | ✅ | ✅ |
+| Consultar eventos publicados | ✅ | ✅ | ✅ |
 | Crear eventos | ❌ | ✅ | ✅ |
-| Modificar eventos propios | ❌ | ✅ | ✅ |
-| Modificar eventos ajenos | ❌ | ❌ | ✅ |
-| Consultar todos los usuarios | ❌ | ❌ | ✅ |
+| Modificar/cancelar eventos propios | ❌ | ✅ | ✅ |
+| Modificar cualquier evento | ❌ | ❌ | ✅ |
+| Ver todos los usuarios | ❌ | ❌ | ✅ |
 
 La definición centralizada de permisos se encuentra en:
 
@@ -785,7 +785,6 @@ middlewares/passport.middleware.js
   register, login y current con session: false, manteniendo
   los códigos HTTP y el formato de errores de la API
 
-  ```text
 config/permissions.config.js
 → centraliza la matriz de permisos por rol
 
@@ -793,7 +792,6 @@ middlewares/authorize.middleware.js
 → valida roles permitidos y propiedad de eventos;
   devuelve 401 si no existe usuario autenticado
   y 403 cuando el usuario no tiene permisos
-```
 
 controllers/sessions.controller.js
 → arma las respuestas HTTP;
@@ -840,6 +838,9 @@ En este proyecto:
 - `current` utiliza una estrategia JWT para validar al usuario autenticado desde la cookie `currentUser`.
 - El controller de login genera el JWT después de una autenticación exitosa.
 - Passport trabaja con `session: false`, ya que la autenticación se mantiene mediante JWT y cookies.
+- `authorizeRoles` valida si el rol del usuario autenticado se encuentra dentro de los roles permitidos.
+- `authorizeEventOwnerOrAdmin` valida la propiedad del evento y permite que un `admin` modifique cualquier evento.
+- La matriz de permisos se encuentra centralizada en `src/config/permissions.config.js`, evitando definir roles directamente dentro de las rutas.
 
 ---
 
@@ -854,6 +855,7 @@ Principales códigos utilizados:
 201 → recurso creado
 400 → datos inválidos
 401 → no autenticado o credenciales inválidas
+403 → autenticado pero sin permisos para realizar la acción
 409 → conflicto por email duplicado
 500 → error interno del servidor
 ```
