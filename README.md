@@ -9,9 +9,19 @@ Actualmente incluye:
 - registro seguro de usuarios;
 - almacenamiento de contraseñas con bcrypt;
 - login de usuarios;
-- autenticación mediante JWT;
+- autenticación mediante JWT y Passport.js;
 - almacenamiento del JWT en una cookie HTTP Only;
 - ruta protegida para consultar al usuario autenticado;
+- roles `user`, `organizer` y `admin`;
+- autorización mediante una matriz centralizada de permisos;
+- middleware reutilizable de autorización por roles;
+- protección de rutas según el rol del usuario;
+- validación de propiedad de eventos;
+- creación de eventos exclusiva para `organizer` y `admin`;
+- modificación de eventos propios para `organizer`;
+- modificación de cualquier evento para `admin`;
+- ruta administrativa para consultar usuarios;
+- diferenciación entre errores `401 Unauthorized` y `403 Forbidden`;
 - logout;
 - manejo centralizado de errores.
 
@@ -121,23 +131,28 @@ backend2-events/
 │   ├── config/
 │   │   ├── config.js
 │   │   ├── database.js
-│   │   └── passport.config.js
+│   │   ├── passport.config.js
+│   │   └── permissions.config.js
 │   │
 │   ├── routes/
 │   │   ├── health.router.js
 │   │   ├── events.router.js
-│   │   └── sessions.router.js
+│   │   ├── sessions.router.js
+│   │   └── users.router.js
 │   │
 │   ├── controllers/
 │   │   ├── health.controller.js
 │   │   ├── events.controller.js
-│   │   └── sessions.controller.js
+│   │   ├── sessions.controller.js
+│   │   └── users.controller.js
 │   │
 │   ├── repositories/
-│   │   └── users.repository.js
+│   │   ├── users.repository.js
+│   │   └── events.repository.js
 │   │
 │   ├── dao/
-│   │   └── users.dao.js
+│   │   ├── users.dao.js
+│   │   └── events.dao.js
 │   │
 │   ├── models/
 │   │   ├── User.js
@@ -145,6 +160,7 @@ backend2-events/
 │   │
 │   ├── middlewares/
 │   │   ├── passport.middleware.js
+│   │   ├── authorize.middleware.js
 │   │   └── error.middleware.js
 │   │
 │   └── utils/
@@ -164,17 +180,125 @@ backend2-events/
 
 # Rutas disponibles
 
-| Método | Ruta | Descripción |
-|---|---|---|
-| GET | `/api/health` | Verifica que el servidor esté activo |
-| GET | `/api/events` | Endpoint inicial de eventos |
-| GET | `/api/sessions` | Verifica la estructura de sessions |
-| POST | `/api/sessions/register` | Registra un usuario |
-| POST | `/api/sessions/login` | Inicia sesión y genera un JWT |
-| GET | `/api/sessions/current` | Devuelve el usuario autenticado |
-| POST | `/api/sessions/logout` | Cierra la sesión |
+| Método | Ruta | Acceso | Descripción |
+|---|---|---|---|
+| GET | `/api/health` | Público | Verifica que el servidor esté activo |
+| GET | `/api/events` | Público | Consulta eventos |
+| POST | `/api/events` | `organizer`, `admin` | Crea un evento |
+| PUT | `/api/events/:eventId` | Dueño del evento o `admin` | Modifica un evento |
+| GET | `/api/sessions` | Público | Verifica la estructura de sessions |
+| POST | `/api/sessions/register` | Público | Registra un usuario con rol `user` |
+| POST | `/api/sessions/login` | Público | Inicia sesión y genera un JWT |
+| GET | `/api/sessions/current` | Autenticado | Devuelve el usuario autenticado |
+| POST | `/api/sessions/logout` | Público | Cierra la sesión |
+| GET | `/api/users` | `admin` | Consulta todos los usuarios |
 
 ---
+
+# Roles y autorización
+
+El sistema utiliza tres roles:
+
+- `user`: usuario común de la plataforma.
+- `organizer`: usuario autorizado para crear y administrar sus propios eventos.
+- `admin`: administrador con permisos generales sobre la plataforma.
+
+El registro público siempre crea usuarios con el rol:
+
+```text
+user
+```
+
+Los roles `organizer` y `admin` no pueden asignarse desde el body de registro.
+
+## Diferencia entre 401 y 403
+
+El proyecto diferencia autenticación de autorización.
+
+### 401 Unauthorized
+
+Se devuelve cuando el usuario no posee una sesión válida.
+
+Ejemplo:
+
+```http
+GET /api/sessions/current
+```
+
+sin la cookie `currentUser`.
+
+Respuesta:
+
+```json
+{
+  "status": "error",
+  "message": "No autenticado"
+}
+```
+
+Código HTTP:
+
+```text
+401 Unauthorized
+```
+
+### 403 Forbidden
+
+Se devuelve cuando el usuario está autenticado, pero su rol no tiene permisos para realizar la acción solicitada.
+
+Ejemplo:
+
+```http
+POST /api/events
+```
+
+con un usuario autenticado cuyo rol es `user`.
+
+Respuesta:
+
+```json
+{
+  "status": "error",
+  "message": "No tenés permisos para realizar esta acción"
+}
+```
+
+Código HTTP:
+
+```text
+403 Forbidden
+```
+
+En resumen:
+
+```text
+401 → el usuario no está autenticado
+403 → el usuario está autenticado, pero no tiene permisos
+```
+
+## Matriz de permisos
+
+| Acción | user | organizer | admin |
+|---|---:|---:|---:|
+| Consultar eventos públicos | ✅ | ✅ | ✅ |
+| Crear eventos | ❌ | ✅ | ✅ |
+| Modificar eventos propios | ❌ | ✅ | ✅ |
+| Modificar eventos ajenos | ❌ | ❌ | ✅ |
+| Consultar todos los usuarios | ❌ | ❌ | ✅ |
+
+La definición centralizada de permisos se encuentra en:
+
+```text
+src/config/permissions.config.js
+```
+
+Las rutas no deciden directamente qué roles están permitidos. Utilizan el middleware reutilizable:
+
+```text
+src/middlewares/authorize.middleware.js
+```
+
+junto con la matriz de permisos.
 
 # Health
 
@@ -661,6 +785,16 @@ middlewares/passport.middleware.js
   register, login y current con session: false, manteniendo
   los códigos HTTP y el formato de errores de la API
 
+  ```text
+config/permissions.config.js
+→ centraliza la matriz de permisos por rol
+
+middlewares/authorize.middleware.js
+→ valida roles permitidos y propiedad de eventos;
+  devuelve 401 si no existe usuario autenticado
+  y 403 cuando el usuario no tiene permisos
+```
+
 controllers/sessions.controller.js
 → arma las respuestas HTTP;
   en login genera el JWT y configura la cookie currentUser
@@ -801,6 +935,40 @@ POST /api/sessions/logout
 eliminar cookie currentUser
         ↓
 sesión cerrada
+```
+
+## Pruebas de roles y autorización
+
+También se verificaron los siguientes casos correspondientes al sistema de autorización:
+
+1. `POST /api/events` sin sesión devuelve `401 Unauthorized`.
+2. `POST /api/events` con rol `user` devuelve `403 Forbidden`.
+3. `POST /api/events` con rol `organizer` crea el evento y devuelve `201 Created`.
+4. Un `organizer` puede modificar su propio evento mediante `PUT /api/events/:eventId`.
+5. `GET /api/users` con rol `organizer` devuelve `403 Forbidden`.
+6. `GET /api/users` con rol `admin` devuelve `200 OK`.
+7. Un `admin` puede modificar un evento creado por otro usuario.
+8. Un `organizer` intentando modificar un evento ajeno recibe `403 Forbidden`.
+9. `GET /api/sessions/current` con sesión válida devuelve `200 OK` y el rol del usuario.
+10. `GET /api/sessions/current` después del logout devuelve `401 Unauthorized`.
+11. El campo `organizer` no puede modificarse enviándolo desde el body de actualización.
+
+El flujo de autorización verificado fue:
+
+```text
+sin sesión
+   ↓
+401 Unauthorized
+
+usuario autenticado
+   ↓
+validación de rol
+   ├── rol no permitido → 403 Forbidden
+   └── rol permitido
+          ↓
+      validación de propiedad
+          ├── recurso ajeno → 403 Forbidden
+          └── dueño o admin → operación permitida
 ```
 
 ---
