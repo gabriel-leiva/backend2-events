@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { getEventById } from "../repositories/events.repository.js";
+import { permissions } from "../config/permissions.config.js";
 
 
 export const authorizeRoles = (...allowedRoles) => {
@@ -47,12 +48,12 @@ export const authorizeEventOwnerOrAdmin = async (req, res, next) => {
             });
         }
 
-        const isAdmin = req.user.role === "admin";
+        const canModifyAnyEvent = permissions.MODIFY_ANY_EVENT.includes(req.user.role);
 
         const isOwner =
             String(event.organizer) === String(req.user.id);
 
-        if (!isAdmin && !isOwner) {
+        if (!canModifyAnyEvent && !isOwner) {
             return res.status(403).json({
                 status: "error",
                 message: "No tenés permisos para modificar este evento"
