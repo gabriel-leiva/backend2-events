@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { getEventById } from "../repositories/events.repository.js";
 
 
@@ -30,8 +31,14 @@ export const authorizeEventOwnerOrAdmin = async (req, res, next) => {
                 message: "No autenticado"
             });
         }
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+            return res.status(400).json({
+                status: "error",
+                message: "El ID del evento no es válido"
+            });
+        }
 
-        const event = await getEventById(req.params.eventId);
+        const event = await getEventById(req.params.id);    
 
         if (!event) {
             return res.status(404).json({

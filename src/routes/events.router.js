@@ -2,8 +2,10 @@ import { Router } from "express";
 
 import {
     getEvents,
+    getEventById,
     createEvent,
-    updateEvent
+    updateEvent,
+    updateEventStatus
 } from "../controllers/events.controller.js";
 
 import {
@@ -25,6 +27,7 @@ const router = Router();
 
 router.get("/", getEvents);
 
+router.get("/:id", getEventById);
 
 router.post(
     "/",
@@ -40,7 +43,7 @@ router.post(
 
 
 router.put(
-    "/:eventId",
+    "/:id",
     authenticatePassport(
         "current",
         "No autenticado",
@@ -50,6 +53,19 @@ router.put(
     authorizeRoles(...permissions.MODIFY_OWN_EVENT),
     authorizeEventOwnerOrAdmin,
     updateEvent
+);
+
+router.patch(
+    "/:id/status",
+    authenticatePassport(
+        "current",
+        "No autenticado",
+        401,
+        false
+    ),
+    authorizeRoles(...permissions.MODIFY_OWN_EVENT),
+    authorizeEventOwnerOrAdmin,
+    updateEventStatus
 );
 
 

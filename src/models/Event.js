@@ -13,9 +13,9 @@ const eventSchema = new mongoose.Schema(
       trim: true
     },
     category: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Category",
-      required: true
+      type: String,
+      required: true,
+      trim: true
     },
     date: {
       type: Date,

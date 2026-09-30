@@ -1,25 +1,45 @@
 import {
-    saveEvent,
-    updateEvent as updateEventRepository
-} from "../repositories/events.repository.js";
+    createEventService,
+    updateEventService,
+    getEventByIdService,
+    getEventsService,
+    updateEventStatusService
+} from "../services/events.service.js";
 
 
-export const getEvents = (req, res) => {
-    res.status(200).json({
-        status: "success",
-        payload: []
-    });
+export const getEvents = async (req, res, next) => {
+    try {
+        const result = await getEventsService(req.query);
+
+        res.status(200).json({
+            status: "success",
+            ...result
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getEventById = async (req, res, next) => {
+    try {
+        const event = await getEventByIdService(req.params.id);
+
+        res.status(200).json({
+            status: "success",
+            payload: event
+        });
+    } catch (error) {
+        next(error);
+    }
 };
 
 
 export const createEvent = async (req, res, next) => {
     try {
-        const eventData = {
-            ...req.body,
-            organizer: req.user.id
-        };
-
-        const newEvent = await saveEvent(eventData);
+        const newEvent = await createEventService(
+            req.body,
+            req.user.id
+        );
 
         res.status(201).json({
             status: "success",
@@ -37,14 +57,9 @@ export const createEvent = async (req, res, next) => {
 
 export const updateEvent = async (req, res, next) => {
     try {
-        const {
-            organizer,
-            ...updateData
-        } = req.body;
-
-        const updatedEvent = await updateEventRepository(
-            req.event._id,
-            updateData
+        const updatedEvent = await updateEventService(
+            req.event,
+            req.body
         );
 
         res.status(200).json({
@@ -52,6 +67,27 @@ export const updateEvent = async (req, res, next) => {
             payload: {
                 id: updatedEvent._id,
                 title: updatedEvent.title,
+                organizer: updatedEvent.organizer
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const updateEventStatus = async (req, res, next) => {
+    try {
+        const updatedEvent = await updateEventStatusService(
+            req.event,
+            req.body.status
+        );
+
+        res.status(200).json({
+            status: "success",
+            payload: {
+                id: updatedEvent._id,
+                title: updatedEvent.title,
+                status: updatedEvent.status,
                 organizer: updatedEvent.organizer
             }
         });
