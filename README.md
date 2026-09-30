@@ -1330,7 +1330,7 @@ También se verificaron los siguientes casos correspondientes al sistema de auto
 1. `POST /api/events` sin sesión devuelve `401 Unauthorized`.
 2. `POST /api/events` con rol `user` devuelve `403 Forbidden`.
 3. `POST /api/events` con rol `organizer` crea el evento y devuelve `201 Created`.
-4. Un `organizer` puede modificar su propio evento mediante `PUT /api/events/:eventId`.
+4. Un `organizer` puede modificar su propio evento mediante `PUT /api/events/:id`.
 5. `GET /api/users` con rol `organizer` devuelve `403 Forbidden`.
 6. `GET /api/users` con rol `admin` devuelve `200 OK`.
 7. Un `admin` puede modificar un evento creado por otro usuario.
