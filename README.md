@@ -20,6 +20,12 @@ Actualmente incluye:
 - creación de eventos exclusiva para `organizer` y `admin`;
 - modificación de eventos propios para `organizer`;
 - modificación de cualquier evento para `admin`;
+- CRUD de eventos con consulta individual y cambio de estado;
+- lógica de negocio de eventos centralizada en la capa `services`;
+- validación de fechas, capacidad, precio y estados;
+- cancelación lógica de eventos sin eliminación física;
+- filtros por estado, categoría, ubicación y rango de fechas;
+- paginación y ordenamiento del listado de eventos;
 - ruta administrativa para consultar usuarios;
 - diferenciación entre errores `401 Unauthorized` y `403 Forbidden`;
 - logout;
@@ -146,6 +152,9 @@ backend2-events/
 │   │   ├── sessions.controller.js
 │   │   └── users.controller.js
 │   │
+│   ├── services/
+│   │   └── events.service.js
+│   │
 │   ├── repositories/
 │   │   ├── users.repository.js
 │   │   └── events.repository.js
@@ -183,9 +192,11 @@ backend2-events/
 | Método | Ruta | Acceso | Descripción |
 |---|---|---|---|
 | GET | `/api/health` | Público | Verifica que el servidor esté activo |
-| GET | `/api/events` | Público | Consulta eventos |
+| GET | `/api/events` | Público | Lista eventos con filtros, paginación y ordenamiento |
+| GET | `/api/events/:id` | Público | Consulta el detalle de un evento |
 | POST | `/api/events` | `organizer`, `admin` | Crea un evento |
-| PUT | `/api/events/:eventId` | Dueño del evento o `admin` | Modifica un evento |
+| PUT | `/api/events/:id` | Dueño del evento o `admin` | Modifica un evento |
+| PATCH | `/api/events/:id/status` | Dueño del evento o `admin` | Cambia el estado de un evento |
 | GET | `/api/sessions` | Público | Verifica la estructura de sessions |
 | POST | `/api/sessions/register` | Público | Registra un usuario con rol `user` |
 | POST | `/api/sessions/login` | Público | Inicia sesión y genera un JWT |
@@ -325,14 +336,78 @@ GET /api/health
 
 # Events
 
+La API permite crear, consultar, actualizar y cambiar el estado de eventos.
+
+Los eventos pueden tener los siguientes estados:
+
+```text
+draft
+published
+cancelled
+finished
+```
+
+Un evento nuevo siempre se crea con estado:
+
+```text
+draft
+```
+
+El campo `organizer` se asigna automáticamente utilizando el usuario autenticado (`req.user`) y no puede definirse manualmente desde el body.
+
+---
+
 ## GET `/api/events`
 
-Endpoint inicial correspondiente al recurso de eventos.
+Ruta pública que permite listar eventos con filtros, paginación y ordenamiento.
 
-### Request
+### Filtros disponibles
+
+```text
+status
+category
+location
+dateFrom
+dateTo
+```
+
+También admite:
+
+```text
+page
+limit
+sort
+```
+
+### Ejemplo
 
 ```http
-GET /api/events
+GET /api/events?status=published&category=workshop&page=2&limit=5
+```
+
+### Ordenamiento
+
+Por defecto:
+
+```text
+sort=date
+```
+
+ordena por fecha ascendente.
+
+Para ordenar de forma descendente se puede anteponer `-`:
+
+```text
+sort=-date
+```
+
+Los campos admitidos para ordenamiento son:
+
+```text
+date
+price
+title
+createdAt
 ```
 
 ### Response 200
@@ -340,9 +415,310 @@ GET /api/events
 ```json
 {
   "status": "success",
-  "payload": []
+  "data": [],
+  "page": 1,
+  "limit": 10,
+  "total": 0,
+  "totalPages": 0
 }
 ```
+
+La respuesta siempre incluye:
+
+```text
+data
+page
+limit
+total
+totalPages
+```
+
+### Ejemplo de filtro por rango de fechas
+
+```http
+GET /api/events?dateFrom=2027-01-01&dateTo=2027-12-31
+```
+
+Si `dateFrom` es posterior a `dateTo`, la API devuelve `400 Bad Request`.
+
+---
+
+## GET `/api/events/:id`
+
+Ruta pública que permite consultar el detalle de un evento.
+
+### Request
+
+```http
+GET /api/events/66abc123...
+```
+
+### Response 200
+
+```json
+{
+  "status": "success",
+  "payload": {
+    "_id": "66abc123...",
+    "title": "Workshop Backend II",
+    "description": "Evento de ejemplo",
+    "category": "workshop",
+    "date": "2027-05-20T18:00:00.000Z",
+    "location": "Mar del Plata",
+    "capacity": 50,
+    "price": 10000,
+    "status": "draft",
+    "organizer": "665f2a..."
+  }
+}
+```
+
+### Error 400 - ID inválido
+
+```json
+{
+  "status": "error",
+  "message": "El ID del evento no es válido"
+}
+```
+
+### Error 404 - Evento inexistente
+
+```json
+{
+  "status": "error",
+  "message": "Evento no encontrado"
+}
+```
+
+---
+
+## POST `/api/events`
+
+Permite crear un evento.
+
+Requiere autenticación y rol:
+
+```text
+organizer
+admin
+```
+
+Los usuarios con rol `user` reciben `403 Forbidden`.
+
+### Request
+
+```json
+{
+  "title": "Workshop Backend II",
+  "description": "Encuentro práctico sobre desarrollo backend",
+  "category": "workshop",
+  "date": "2027-05-20T18:00:00.000Z",
+  "location": "Mar del Plata",
+  "capacity": 50,
+  "price": 10000
+}
+```
+
+El cliente no controla:
+
+```text
+organizer
+status
+```
+
+El backend asigna:
+
+```text
+organizer → req.user.id
+status → draft
+```
+
+### Response 201
+
+```json
+{
+  "status": "success",
+  "payload": {
+    "id": "66abc123...",
+    "title": "Workshop Backend II",
+    "organizer": "665f2a..."
+  }
+}
+```
+
+### Reglas de negocio
+
+Al crear un evento:
+
+- `title`, `description`, `category` y `location` son obligatorios.
+- La fecha no puede estar en el pasado.
+- `capacity` debe ser mayor a `0`.
+- `price` debe ser mayor o igual a `0`.
+- `organizer` se obtiene del usuario autenticado.
+- `status` se establece automáticamente como `draft`.
+
+---
+
+## PUT `/api/events/:id`
+
+Permite modificar un evento.
+
+Puede utilizarlo:
+
+```text
+organizer dueño del evento
+admin
+```
+
+Un `organizer` no puede modificar eventos creados por otro usuario.
+
+### Request
+
+```json
+{
+  "title": "Workshop Backend II Actualizado",
+  "capacity": 100,
+  "price": 12000
+}
+```
+
+Los campos:
+
+```text
+organizer
+status
+```
+
+no pueden modificarse mediante `PUT`.
+
+El cambio de estado se realiza exclusivamente mediante:
+
+```text
+PATCH /api/events/:id/status
+```
+
+### Reglas de negocio
+
+- Un evento `cancelled` no puede modificarse.
+- La fecha no puede modificarse por una fecha pasada.
+- `capacity` debe mantenerse mayor a `0`.
+- `price` debe mantenerse mayor o igual a `0`.
+- Los campos de texto obligatorios no pueden quedar vacíos.
+
+### Error 403 - Evento ajeno
+
+```json
+{
+  "status": "error",
+  "message": "No tenés permisos para modificar este evento"
+}
+```
+
+---
+
+## PATCH `/api/events/:id/status`
+
+Permite modificar el estado de un evento.
+
+Puede utilizarlo:
+
+```text
+organizer dueño del evento
+admin
+```
+
+### Request
+
+```json
+{
+  "status": "published"
+}
+```
+
+Estados válidos:
+
+```text
+draft
+published
+cancelled
+finished
+```
+
+### Cancelación
+
+Para cancelar un evento:
+
+```json
+{
+  "status": "cancelled"
+}
+```
+
+La cancelación es lógica.
+
+El documento no se elimina de MongoDB.
+
+### Reglas de negocio
+
+- Un evento cancelado no puede cambiar nuevamente de estado.
+- Un evento finalizado no puede volver a `published`.
+- Un evento cuya fecha ya pasó no puede publicarse.
+- Los valores de estado fuera de los permitidos devuelven `400 Bad Request`.
+
+### Response 200
+
+```json
+{
+  "status": "success",
+  "payload": {
+    "id": "66abc123...",
+    "title": "Workshop Backend II",
+    "status": "published",
+    "organizer": "665f2a..."
+  }
+}
+```
+
+---
+
+## Lógica de negocio de eventos
+
+La lógica de negocio correspondiente a eventos se encuentra centralizada en:
+
+```text
+src/services/events.service.js
+```
+
+Los controllers se limitan a manejar request y response.
+
+El acceso a datos se mantiene separado mediante:
+
+```text
+Controller
+↓
+Service
+↓
+Repository
+↓
+DAO
+↓
+MongoDB
+```
+
+Las reglas principales implementadas incluyen:
+
+- validación de campos obligatorios;
+- control de fechas pasadas;
+- validación de capacidad;
+- validación de precio;
+- protección de eventos cancelados;
+- control de cambios de estado;
+- asignación automática del organizador;
+- filtros;
+- paginación;
+- ordenamiento;
+- validación de propiedad del recurso.
 
 ---
 
@@ -760,9 +1136,11 @@ El flujo de autenticación queda organizado de la siguiente manera:
 ```text
 Route
   ↓
-Passport Strategy
+Autenticación / Autorización
   ↓
 Controller
+  ↓
+Service
   ↓
 Repository
   ↓
@@ -796,6 +1174,12 @@ middlewares/authorize.middleware.js
 controllers/sessions.controller.js
 → arma las respuestas HTTP;
   en login genera el JWT y configura la cookie currentUser
+
+services/events.service.js
+→ concentra la lógica de negocio de eventos:
+  validaciones de fechas, capacidad, precio y estados;
+  filtros, paginación y ordenamiento;
+  impide modificaciones incoherentes sobre eventos cancelados
 
 repositories/users.repository.js
 → abstrae el acceso a los datos de usuarios
@@ -971,6 +1355,62 @@ validación de rol
       validación de propiedad
           ├── recurso ajeno → 403 Forbidden
           └── dueño o admin → operación permitida
+```
+
+## Pruebas de eventos y lógica de negocio
+
+Se verificaron los siguientes casos correspondientes a la gestión de eventos:
+
+1. Crear evento con rol `user` devuelve `403 Forbidden`.
+2. Crear evento con fecha pasada devuelve `400 Bad Request`.
+3. Crear evento con `capacity: 0` devuelve `400 Bad Request`.
+4. Crear evento con `price < 0` devuelve `400 Bad Request`.
+5. Crear evento válido con `organizer` devuelve `201 Created`.
+6. El `organizer` se asigna automáticamente desde `req.user`.
+7. El `status` inicial se fuerza a `draft`.
+8. Consultar un evento por ID válido devuelve `200 OK`.
+9. Consultar un evento inexistente devuelve `404 Not Found`.
+10. Consultar un evento con ID inválido devuelve `400 Bad Request`.
+11. `organizer` puede modificar su propio evento.
+12. `organizer` no puede modificar un evento ajeno y recibe `403 Forbidden`.
+13. `admin` puede modificar un evento creado por otro organizador.
+14. Un evento `cancelled` no puede modificarse mediante `PUT`.
+15. Un evento `cancelled` no puede cambiar nuevamente de estado.
+16. Un evento `finished` no puede volver a `published`.
+17. Un evento cuya fecha ya pasó no puede publicarse.
+18. `PUT` no permite modificar `organizer`.
+19. `PUT` no permite modificar `status`.
+20. `PUT` rechaza campos de texto obligatorios vacíos.
+21. `PUT` rechaza `capacity <= 0`.
+22. `PUT` rechaza `price < 0`.
+23. `PUT` rechaza una fecha pasada.
+24. `GET /api/events` devuelve paginación y metadata.
+25. Se verificó el filtro por `status`.
+26. Se verificó el filtro por `category`.
+27. Se verificó el filtro por `location`.
+28. Se verificó el filtro por rango de fechas.
+29. Se verificó `page` y `limit`.
+30. Se verificó ordenamiento ascendente y descendente por fecha.
+31. Un rango con `dateFrom > dateTo` devuelve `400 Bad Request`.
+32. Un valor inválido de `status` devuelve `400 Bad Request`.
+33. Un valor inválido de `sort` devuelve `400 Bad Request`.
+34. `page <= 0` devuelve `400 Bad Request`.
+35. `limit <= 0` devuelve `400 Bad Request`.
+
+También se verificó explícitamente el caso indicado en la consigna:
+
+```http
+GET /api/events?status=published&category=workshop&page=2&limit=5
+```
+
+La respuesta incluye:
+
+```text
+data
+page
+limit
+total
+totalPages
 ```
 
 ---
