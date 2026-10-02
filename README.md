@@ -1534,6 +1534,269 @@ El archivo `.env.example` sí se incluye en el repositorio como referencia de co
 
 ---
 
+# Tickets e inscripciones
+
+La API incorpora un sistema de inscripciones a eventos mediante la entidad `Ticket`.
+
+Cada ticket relaciona un usuario con un evento mediante referencias de MongoDB.
+
+## Estados de Ticket
+
+Los estados permitidos son:
+
+```text
+confirmed
+pending
+cancelled
+```
+
+- `confirmed`: inscripción confirmada y activa.
+- `pending`: inscripción pendiente y activa.
+- `cancelled`: inscripción cancelada.
+
+Los tickets cancelados se conservan en la base de datos para mantener el historial de inscripciones.
+
+---
+
+## Modelo Ticket
+
+El modelo incluye:
+
+```text
+user
+event
+status
+quantity
+reservationCode
+createdAt
+cancelledAt
+```
+
+Los campos `user` y `event` utilizan referencias `ObjectId` a los modelos `User` y `Event`.
+
+No se almacenan objetos completos de usuarios o eventos dentro del ticket.
+
+---
+
+## POST `/api/events/:eid/tickets`
+
+Permite que un usuario autenticado se inscriba a un evento.
+
+### Request
+
+```json
+{
+  "quantity": 1
+}
+```
+
+El usuario se obtiene automáticamente desde `req.user`.
+
+No se recibe `userId` desde el body.
+
+### Validaciones
+
+Antes de crear el ticket, el service verifica:
+
+- que el evento exista;
+- que esté en estado `published`;
+- que no haya finalizado;
+- que `quantity` sea un número entero mayor a `0`;
+- que el usuario no tenga otra inscripción activa para el mismo evento;
+- que exista cupo suficiente.
+
+### Control de cupos
+
+Los cupos ocupados se calculan sumando `quantity` de tickets con estados:
+
+```text
+confirmed
+pending
+```
+
+Los tickets con estado:
+
+```text
+cancelled
+```
+
+no ocupan cupo.
+
+El cálculo se realiza mediante:
+
+```text
+cupos disponibles = capacidad del evento - cantidad reservada activa
+```
+
+### Response 201
+
+Una inscripción exitosa crea un ticket con estado:
+
+```text
+confirmed
+```
+
+y genera un código único de reserva.
+
+Después de persistir el ticket se envía un email de confirmación mediante Nodemailer.
+
+---
+
+## GET `/api/tickets/my-tickets`
+
+Ruta autenticada que devuelve únicamente las inscripciones del usuario actual.
+
+Los eventos relacionados se obtienen mediante `populate` y exponen:
+
+```text
+title
+date
+location
+```
+
+No se exponen datos sensibles de otros usuarios.
+
+---
+
+## GET `/api/events/:eid/tickets`
+
+Permite consultar los tickets asociados a un evento.
+
+Acceso permitido para:
+
+```text
+organizer dueño del evento
+admin
+```
+
+Un `user` común recibe:
+
+```text
+403 Forbidden
+```
+
+Un `organizer` que intenta consultar un evento ajeno también recibe:
+
+```text
+403 Forbidden
+```
+
+---
+
+## PATCH `/api/tickets/:tid/cancel`
+
+Cancela una inscripción sin eliminar físicamente el documento.
+
+Puede utilizarlo:
+
+```text
+dueño del ticket
+admin
+```
+
+Al cancelar:
+
+```text
+status → cancelled
+cancelledAt → fecha actual
+```
+
+Un ticket ya cancelado no puede volver a cancelarse.
+
+Como los tickets `cancelled` no participan del cálculo de cupos ocupados, el lugar queda disponible automáticamente.
+
+---
+
+# Notificaciones por email
+
+La aplicación utiliza Nodemailer para enviar una confirmación cuando una inscripción se realiza correctamente.
+
+La configuración SMTP utiliza variables de entorno:
+
+```env
+MAIL_HOST=
+MAIL_PORT=
+MAIL_USER=
+MAIL_PASS=
+MAIL_FROM=
+```
+
+Las credenciales reales se almacenan únicamente en `.env`.
+
+`.env` no se incluye en Git.
+
+`.env.example` contiene solamente los nombres de las variables necesarias.
+
+El email se envía después de persistir correctamente el ticket.
+
+Si el envío de la notificación falla, el ticket ya creado continúa siendo válido y el error del correo se registra en el servidor.
+
+---
+
+# Flujo de inscripción
+
+```text
+POST /api/events/:eid/tickets
+        ↓
+autenticación Passport
+        ↓
+controller
+        ↓
+service
+        ↓
+validar evento
+        ↓
+validar estado y fecha
+        ↓
+validar quantity
+        ↓
+validar duplicado
+        ↓
+calcular cupos disponibles
+        ↓
+crear Ticket
+        ↓
+MongoDB
+        ↓
+enviar email
+        ↓
+201 Created
+```
+
+La lógica de validación de inscripciones se encuentra centralizada en:
+
+```text
+src/services/tickets.service.js
+```
+
+El controller se limita a manejar `request` y `response`.
+
+---
+
+# Pruebas de tickets realizadas
+
+Se verificaron los siguientes casos:
+
+1. Inscripción exitosa devuelve `201 Created`.
+2. La inscripción exitosa envía el email de confirmación.
+3. Inscripción sin sesión devuelve `401 Unauthorized`.
+4. Inscripción a evento inexistente devuelve `404 Not Found`.
+5. Inscripción a evento cancelado devuelve error de negocio.
+6. Inscripción a evento finalizado devuelve error de negocio.
+7. `quantity <= 0` devuelve `400 Bad Request`.
+8. Inscripción sin cupo suficiente devuelve `400 Bad Request`.
+9. Inscripción duplicada activa devuelve `409 Conflict`.
+10. El usuario puede cancelar su propio ticket.
+11. La cancelación cambia el estado a `cancelled` sin eliminar el documento.
+12. Después de cancelar, el cupo vuelve a quedar disponible.
+13. Un usuario no puede cancelar el ticket de otro usuario y recibe `403 Forbidden`.
+14. Un `user` común no puede consultar los tickets de un evento y recibe `403 Forbidden`.
+15. Un `organizer` no puede consultar tickets de un evento ajeno y recibe `403 Forbidden`.
+16. Un `organizer` puede consultar los tickets de su propio evento.
+17. Un `admin` puede consultar tickets de cualquier evento.
+18. Un `admin` puede cancelar un ticket ajeno.
+19. Un ticket ya cancelado no puede volver a cancelarse.
+
 # Repositorio
 
 Proyecto desarrollado como parte del curso **Programación Backend II**.
