@@ -21,11 +21,40 @@ import {
     permissions
 } from "../config/permissions.config.js";
 
+import {
+    createTicket,
+    getEventTickets
+} from "../controllers/tickets.controller.js";
+
 
 const router = Router();
 
 
 router.get("/", getEvents);
+
+router.post(
+    "/:eid/tickets",
+    authenticatePassport(
+        "current",
+        "No autenticado",
+        401,
+        false
+    ),
+    createTicket
+);
+
+
+router.get(
+    "/:eid/tickets",
+    authenticatePassport(
+        "current",
+        "No autenticado",
+        401,
+        false
+    ),
+    authorizeRoles(...permissions.VIEW_EVENT_TICKETS),
+    getEventTickets
+);
 
 router.get("/:id", getEventById);
 

@@ -19,6 +19,11 @@ export const permissions = {
         "admin"
     ],
 
+    VIEW_EVENT_TICKETS: [
+        "organizer",
+        "admin"
+    ],
+
     VIEW_ALL_USERS: [
         "admin"
     ]
