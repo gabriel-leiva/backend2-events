@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+
 import {
     saveEvent,
     getEventById,
@@ -6,6 +7,10 @@ import {
     getEventsCount,
     updateEvent
 } from "../repositories/events.repository.js";
+
+import {
+    EventDTO
+} from "../dto/event.dto.js";
 
 
 export const createEventService = async (
@@ -91,7 +96,9 @@ export const createEventService = async (
     };
 
 
-    return await saveEvent(newEventData);
+    const newEvent = await saveEvent(newEventData);
+
+    return EventDTO.toSummaryResponse(newEvent);
 };
 
 export const updateEventService = async (
@@ -195,10 +202,12 @@ export const updateEventService = async (
     }
 
 
-    return await updateEvent(
+    const updatedEvent = await updateEvent(
         event._id,
         updateData
     );
+
+    return EventDTO.toSummaryResponse(updatedEvent);
 };
 
 export const getEventByIdService = async (eventId) => {
@@ -223,7 +232,7 @@ export const getEventByIdService = async (eventId) => {
         throw error;
     }
 
-    return event;
+    return EventDTO.toPublicResponse(event);
 };
 
 export const getEventsService = async (query) => {
@@ -406,7 +415,9 @@ export const getEventsService = async (query) => {
 
 
     return {
-        data: events,
+        data: events.map(
+            event => EventDTO.toPublicResponse(event)
+        ),
         page: parsedPage,
         limit: parsedLimit,
         total,
@@ -476,10 +487,14 @@ export const updateEventStatusService = async (
     }
 
 
-    return await updateEvent(
+    const updatedEvent = await updateEvent(
         event._id,
         {
             status: newStatus
         }
+    );
+
+    return EventDTO.toStatusResponse(
+        updatedEvent
     );
 };

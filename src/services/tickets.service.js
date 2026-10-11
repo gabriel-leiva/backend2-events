@@ -18,6 +18,10 @@ import {
     sendTicketConfirmationEmail
 } from "./mail.service.js";
 
+import {
+    TicketDTO
+} from "../dto/ticket.dto.js";
+
 
 const generateReservationCode = () => {
     return `TCK-${randomUUID().toUpperCase()}`;
@@ -168,12 +172,16 @@ export const createTicketService = async (
     }
 
 
-    return ticket;
+    return TicketDTO.toPublicResponse(ticket);
 };
 
 
 export const getMyTicketsService = async (userId) => {
-    return await getTicketsByUser(userId);
+    const tickets = await getTicketsByUser(userId);
+
+    return tickets.map(
+        ticket => TicketDTO.toPublicResponse(ticket)
+    );
 };
 
 
@@ -222,7 +230,11 @@ export const getEventTicketsService = async (
     }
 
 
-    return await getTicketsByEvent(event._id);
+    const tickets = await getTicketsByEvent(event._id);
+
+    return tickets.map(
+        ticket => TicketDTO.toPublicResponse(ticket)
+    );
 };
 
 
@@ -282,11 +294,15 @@ export const cancelTicketService = async (
     }
 
 
-    return await updateTicket(
+    const cancelledTicket = await updateTicket(
         ticket._id,
         {
             status: "cancelled",
             cancelledAt: new Date()
         }
+    );
+
+    return TicketDTO.toPublicResponse(
+        cancelledTicket
     );
 };

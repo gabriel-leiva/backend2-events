@@ -3,19 +3,14 @@ import { Strategy as LocalStrategy } from "passport-local";
 import { Strategy as JwtStrategy } from "passport-jwt";
 
 import {
-    getUserByEmail,
-    saveUser
-} from "../repositories/users.repository.js";
+    registerUserService,
+    loginUserService,
+    getCurrentSessionUserService
+} from "../services/sessions.service.js";
 
 import {
-    createHash,
-    isValidPassword
-} from "../utils/hash.js";
-
-import { config } from "./config.js";
-
-
-const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    config
+} from "./config.js";
 
 
 const cookieExtractor = (req) => {
@@ -38,60 +33,19 @@ passport.use(
         },
         async (req, email, password, done) => {
             try {
-                const { first_name, last_name } = req.body ?? {};
+                const {
+                    first_name,
+                    last_name
+                } = req.body ?? {};
 
-                if (
-                    typeof first_name !== "string" ||
-                    typeof last_name !== "string" ||
-                    typeof email !== "string" ||
-                    typeof password !== "string" ||
-                    !first_name.trim() ||
-                    !last_name.trim() ||
-                    !email.trim() ||
-                    !password.trim()
-                ) {
-                    return done(null, false, {
-                        message: "Faltan campos obligatorios",
-                        statusCode: 400
-                    });
-                }
-
-                if (!emailRegex.test(email.trim())) {
-                    return done(null, false, {
-                        message: "El email no es válido",
-                        statusCode: 400
-                    });
-                }
-
-                if (password.length < 8) {
-                    return done(null, false, {
-                        message: "La contraseña debe tener al menos 8 caracteres",
-                        statusCode: 400
-                    });
-                }
-
-                const normalizedEmail = email.trim().toLowerCase();
-
-                const existingUser = await getUserByEmail(normalizedEmail);
-
-                if (existingUser) {
-                    return done(null, false, {
-                        message: "El email ya está registrado",
-                        statusCode: 409
-                    });
-                }
-
-                const hashedPassword = await createHash(password);
-
-                const newUser = await saveUser({
-                    first_name: first_name.trim(),
-                    last_name: last_name.trim(),
-                    email: normalizedEmail,
-                    password: hashedPassword,
-                    role: "user"
+                const user = await registerUserService({
+                    first_name,
+                    last_name,
+                    email,
+                    password
                 });
 
-                return done(null, newUser);
+                return done(null, user);
             } catch (error) {
                 return done(error);
             }
@@ -110,28 +64,10 @@ passport.use(
         },
         async (email, password, done) => {
             try {
-                const normalizedEmail = email.trim().toLowerCase();
-
-                const user = await getUserByEmail(normalizedEmail);
-
-                if (!user) {
-                    return done(null, false, {
-                        message: "Credenciales inválidas",
-                        statusCode: 401
-                    });
-                }
-
-                const validPassword = await isValidPassword(
-                    password,
-                    user.password
-                );
-
-                if (!validPassword) {
-                    return done(null, false, {
-                        message: "Credenciales inválidas",
-                        statusCode: 401
-                    });
-                }
+                const user = await loginUserService({
+                    email,
+                    password
+                });
 
                 return done(null, user);
             } catch (error) {
@@ -151,20 +87,20 @@ passport.use(
         },
         async (jwtPayload, done) => {
             try {
-                const user = await getUserByEmail(jwtPayload.email);
+                const user =
+                    await getCurrentSessionUserService(
+                        jwtPayload.email
+                    );
 
-                if (!user) {
+                return done(null, user);
+            } catch (error) {
+                if (error.statusCode === 401) {
                     return done(null, false, {
-                        message: "No autenticado"
+                        message: error.message,
+                        statusCode: error.statusCode
                     });
                 }
 
-                return done(null, {
-                    id: user._id,
-                    email: user.email,
-                    role: user.role
-                });
-            } catch (error) {
                 return done(error);
             }
         }

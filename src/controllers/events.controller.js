@@ -43,11 +43,7 @@ export const createEvent = async (req, res, next) => {
 
         res.status(201).json({
             status: "success",
-            payload: {
-                id: newEvent._id,
-                title: newEvent.title,
-                organizer: newEvent.organizer
-            }
+            payload: newEvent
         });
     } catch (error) {
         next(error);
@@ -64,11 +60,7 @@ export const updateEvent = async (req, res, next) => {
 
         res.status(200).json({
             status: "success",
-            payload: {
-                id: updatedEvent._id,
-                title: updatedEvent.title,
-                organizer: updatedEvent.organizer
-            }
+            payload: updatedEvent
         });
     } catch (error) {
         next(error);
@@ -84,12 +76,7 @@ export const updateEventStatus = async (req, res, next) => {
 
         res.status(200).json({
             status: "success",
-            payload: {
-                id: updatedEvent._id,
-                title: updatedEvent.title,
-                status: updatedEvent.status,
-                organizer: updatedEvent.organizer
-            }
+            payload: updatedEvent
         });
     } catch (error) {
         next(error);

@@ -1,5 +1,12 @@
-import { generateToken } from "../utils/jwt.js";
-import { config } from "../config/config.js";
+import {
+    getRegisterResponseService,
+    createSessionTokenService,
+    getCurrentUserResponseService
+} from "../services/sessions.service.js";
+
+import {
+    config
+} from "../config/config.js";
 
 
 export const getSessionsStatus = (req, res) => {
@@ -11,25 +18,21 @@ export const getSessionsStatus = (req, res) => {
 
 
 export const register = (req, res) => {
+    const user = getRegisterResponseService(
+        req.user
+    );
+
     res.status(201).json({
         status: "success",
-        payload: {
-            id: req.user._id,
-            first_name: req.user.first_name,
-            last_name: req.user.last_name,
-            email: req.user.email,
-            role: req.user.role
-        }
+        payload: user
     });
 };
 
 
 export const login = (req, res) => {
-    const token = generateToken({
-        id: req.user._id,
-        email: req.user.email,
-        role: req.user.role
-    });
+    const token = createSessionTokenService(
+        req.user
+    );
 
     res.cookie("currentUser", token, {
         httpOnly: true,
@@ -46,13 +49,13 @@ export const login = (req, res) => {
 
 
 export const current = (req, res) => {
+    const user = getCurrentUserResponseService(
+        req.user
+    );
+
     res.status(200).json({
         status: "success",
-        payload: {
-            id: req.user.id,
-            email: req.user.email,
-            role: req.user.role
-        }
+        payload: user
     });
 };
 

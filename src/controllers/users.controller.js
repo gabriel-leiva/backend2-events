@@ -1,11 +1,11 @@
 import {
-    getAllUsers
-} from "../repositories/users.repository.js";
+    getAllUsersService
+} from "../services/users.service.js";
 
 
 export const getUsers = async (req, res, next) => {
     try {
-        const users = await getAllUsers();
+        const users = await getAllUsersService();
 
         res.status(200).json({
             status: "success",
