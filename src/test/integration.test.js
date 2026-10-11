@@ -14,10 +14,35 @@ import {
 
 let mongoReplSet;
 let app;
-let UserModel;
 let transporter;
 
+let saveUser;
+let createHash;
+
 let sentEmails = 0;
+
+
+const createOrganizerFixture = async (
+    organizerData
+) => {
+    const hashedPassword =
+        await createHash(
+            organizerData.password
+        );
+
+
+    return await saveUser({
+        first_name:
+            organizerData.first_name,
+        last_name:
+            organizerData.last_name,
+        email:
+            organizerData.email,
+        password:
+            hashedPassword,
+        role: "organizer"
+    });
+};
 
 
 before(async () => {
@@ -29,7 +54,8 @@ before(async () => {
     process.env.MAIL_PORT = "2525";
     process.env.MAIL_USER = "test";
     process.env.MAIL_PASS = "test";
-    process.env.MAIL_FROM = "test@example.com";
+    process.env.MAIL_FROM =
+        "test@example.com";
 
 
     mongoReplSet =
@@ -52,11 +78,21 @@ before(async () => {
     app = appModule.default;
 
 
-    const userModule = await import(
-        "../models/User.js"
+    const usersRepositoryModule =
+        await import(
+            "../repositories/users.repository.js"
+        );
+
+    saveUser =
+        usersRepositoryModule.saveUser;
+
+
+    const hashModule = await import(
+        "../utils/hash.js"
     );
 
-    UserModel = userModule.UserModel;
+    createHash =
+        hashModule.createHash;
 
 
     const mailerModule = await import(
@@ -108,7 +144,8 @@ test(
         const organizerData = {
             first_name: "Organizer",
             last_name: "Test",
-            email: "organizer.test@example.com",
+            email:
+                "organizer.test@example.com",
             password: "Test12345"
         };
 
@@ -163,24 +200,23 @@ test(
 
 
         await t.test(
-            "registro del organizer",
+            "se crea fixture del organizer",
             async () => {
-                await organizerAgent
-                    .post(
-                        "/api/sessions/register"
-                    )
-                    .send(organizerData)
-                    .expect(201);
+                const organizer =
+                    await createOrganizerFixture(
+                        organizerData
+                    );
 
 
-                await UserModel.updateOne(
-                    {
-                        email:
-                            organizerData.email
-                    },
-                    {
-                        role: "organizer"
-                    }
+                assert.equal(
+                    organizer.role,
+                    "organizer"
+                );
+
+
+                assert.equal(
+                    organizer.email,
+                    organizerData.email
                 );
             }
         );
@@ -409,7 +445,9 @@ test(
 
 
                 assert.equal(
-                    response.body.payload[0].status,
+                    response.body
+                        .payload[0]
+                        .status,
                     "confirmed"
                 );
             }
@@ -440,6 +478,21 @@ test(
                         .password,
                     undefined
                 );
+
+
+                assert.deepEqual(
+                    Object.keys(
+                        response.body
+                            .payload[0]
+                            .user
+                    ).sort(),
+                    [
+                        "_id",
+                        "email",
+                        "first_name",
+                        "last_name"
+                    ].sort()
+                );
             }
         );
 
@@ -462,7 +515,9 @@ test(
 
 
                 assert.ok(
-                    response.body.payload.cancelledAt
+                    response.body
+                        .payload
+                        .cancelledAt
                 );
             }
         );
@@ -522,20 +577,8 @@ test(
         };
 
 
-        await organizerAgent
-            .post("/api/sessions/register")
-            .send(organizerData)
-            .expect(201);
-
-
-        await UserModel.updateOne(
-            {
-                email:
-                    organizerData.email
-            },
-            {
-                role: "organizer"
-            }
+        await createOrganizerFixture(
+            organizerData
         );
 
 
