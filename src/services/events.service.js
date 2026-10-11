@@ -13,11 +13,56 @@ import {
 } from "../dto/event.dto.js";
 
 
+const writableEventFields = [
+    "title",
+    "description",
+    "category",
+    "date",
+    "location",
+    "capacity",
+    "price"
+];
+
+
+const isValidPayload = (payload) => {
+    return (
+        payload &&
+        typeof payload === "object" &&
+        !Array.isArray(payload)
+    );
+};
+
+
+const pickWritableEventData = (eventData) => {
+    return writableEventFields.reduce(
+        (result, field) => {
+            if (eventData[field] !== undefined) {
+                result[field] = eventData[field];
+            }
+
+            return result;
+        },
+        {}
+    );
+};
+
+
 export const createEventService = async (
     eventData,
     organizerId
 ) => {
-        const requiredStringFields = [
+    if (!isValidPayload(eventData)) {
+        const error = new Error(
+            "Faltan campos obligatorios del evento"
+        );
+
+        error.statusCode = 400;
+
+        throw error;
+    }
+
+
+    const requiredStringFields = [
         "title",
         "description",
         "category",
@@ -41,7 +86,8 @@ export const createEventService = async (
 
         throw error;
     }
-    
+
+
     const eventDate = new Date(eventData.date);
 
     if (
@@ -90,7 +136,7 @@ export const createEventService = async (
 
 
     const newEventData = {
-        ...eventData,
+        ...pickWritableEventData(eventData),
         organizer: organizerId,
         status: "draft"
     };
@@ -100,6 +146,7 @@ export const createEventService = async (
 
     return EventDTO.toSummaryResponse(newEvent);
 };
+
 
 export const updateEventService = async (
     event,
@@ -116,11 +163,20 @@ export const updateEventService = async (
     }
 
 
-    const {
-        organizer,
-        status,
-        ...updateData
-    } = eventData;
+    if (!isValidPayload(eventData)) {
+        const error = new Error(
+            "Los datos del evento no son válidos"
+        );
+
+        error.statusCode = 400;
+
+        throw error;
+    }
+
+
+    const updateData =
+        pickWritableEventData(eventData);
+
 
     const stringFields = [
         "title",
@@ -150,22 +206,24 @@ export const updateEventService = async (
         throw error;
     }
 
+
     if (updateData.date !== undefined) {
-    const eventDate = new Date(updateData.date);
+        const eventDate =
+            new Date(updateData.date);
 
-    if (
-        Number.isNaN(eventDate.getTime()) ||
-        eventDate < new Date()
-    ) {
-        const error = new Error(
-            "La fecha del evento no puede estar en el pasado"
-        );
+        if (
+            Number.isNaN(eventDate.getTime()) ||
+            eventDate < new Date()
+        ) {
+            const error = new Error(
+                "La fecha del evento no puede estar en el pasado"
+            );
 
-        error.statusCode = 400;
+            error.statusCode = 400;
 
-        throw error;
+            throw error;
+        }
     }
-}
 
 
     if (
@@ -207,11 +265,20 @@ export const updateEventService = async (
         updateData
     );
 
-    return EventDTO.toSummaryResponse(updatedEvent);
+    return EventDTO.toSummaryResponse(
+        updatedEvent
+    );
 };
 
-export const getEventByIdService = async (eventId) => {
-    if (!mongoose.Types.ObjectId.isValid(eventId)) {
+
+export const getEventByIdService = async (
+    eventId
+) => {
+    if (
+        !mongoose.Types.ObjectId.isValid(
+            eventId
+        )
+    ) {
         const error = new Error(
             "El ID del evento no es válido"
         );
@@ -220,7 +287,11 @@ export const getEventByIdService = async (eventId) => {
 
         throw error;
     }
-    const event = await getEventById(eventId);
+
+
+    const event =
+        await getEventById(eventId);
+
 
     if (!event) {
         const error = new Error(
@@ -232,10 +303,14 @@ export const getEventByIdService = async (eventId) => {
         throw error;
     }
 
+
     return EventDTO.toPublicResponse(event);
 };
 
-export const getEventsService = async (query) => {
+
+export const getEventsService = async (
+    query
+) => {
     const {
         status,
         category,
@@ -291,7 +366,10 @@ export const getEventsService = async (query) => {
             "finished"
         ];
 
-        if (!validStatuses.includes(status)) {
+
+        if (
+            !validStatuses.includes(status)
+        ) {
             const error = new Error(
                 "El estado del evento no es válido"
             );
@@ -300,6 +378,7 @@ export const getEventsService = async (query) => {
 
             throw error;
         }
+
 
         filter.status = status;
     }
@@ -321,9 +400,15 @@ export const getEventsService = async (query) => {
 
 
     if (dateFrom) {
-        const fromDate = new Date(dateFrom);
+        const fromDate =
+            new Date(dateFrom);
 
-        if (Number.isNaN(fromDate.getTime())) {
+
+        if (
+            Number.isNaN(
+                fromDate.getTime()
+            )
+        ) {
             const error = new Error(
                 "dateFrom no contiene una fecha válida"
             );
@@ -333,14 +418,21 @@ export const getEventsService = async (query) => {
             throw error;
         }
 
+
         filter.date.$gte = fromDate;
     }
 
 
     if (dateTo) {
-        const toDate = new Date(dateTo);
+        const toDate =
+            new Date(dateTo);
 
-        if (Number.isNaN(toDate.getTime())) {
+
+        if (
+            Number.isNaN(
+                toDate.getTime()
+            )
+        ) {
             const error = new Error(
                 "dateTo no contiene una fecha válida"
             );
@@ -350,6 +442,7 @@ export const getEventsService = async (query) => {
             throw error;
         }
 
+
         filter.date.$lte = toDate;
     }
 
@@ -357,7 +450,8 @@ export const getEventsService = async (query) => {
     if (
         filter.date?.$gte &&
         filter.date?.$lte &&
-        filter.date.$gte > filter.date.$lte
+        filter.date.$gte >
+        filter.date.$lte
     ) {
         const error = new Error(
             "dateFrom no puede ser posterior a dateTo"
@@ -369,10 +463,24 @@ export const getEventsService = async (query) => {
     }
 
 
-    const descending = sort.startsWith("-");
+    if (typeof sort !== "string") {
+        const error = new Error(
+            "El campo de ordenamiento no es válido"
+        );
+
+        error.statusCode = 400;
+
+        throw error;
+    }
+
+
+    const descending =
+        sort.startsWith("-");
+
     const sortField = descending
         ? sort.slice(1)
         : sort;
+
 
     const allowedSortFields = [
         "date",
@@ -382,7 +490,11 @@ export const getEventsService = async (query) => {
     ];
 
 
-    if (!allowedSortFields.includes(sortField)) {
+    if (
+        !allowedSortFields.includes(
+            sortField
+        )
+    ) {
         const error = new Error(
             "El campo de ordenamiento no es válido"
         );
@@ -394,38 +506,59 @@ export const getEventsService = async (query) => {
 
 
     const sortOption = {
-        [sortField]: descending ? -1 : 1
+        [sortField]:
+            descending ? -1 : 1
     };
 
+
     const skip =
-        (parsedPage - 1) * parsedLimit;
+        (parsedPage - 1) *
+        parsedLimit;
 
 
-    const [events, total] = await Promise.all([
+    const [
+        events,
+        total
+    ] = await Promise.all([
         getFilteredEvents(
             filter,
             {
                 skip,
-                limit: parsedLimit,
-                sort: sortOption
+                limit:
+                    parsedLimit,
+                sort:
+                    sortOption
             }
         ),
+
         getEventsCount(filter)
     ]);
 
 
     return {
         data: events.map(
-            event => EventDTO.toPublicResponse(event)
+            event =>
+                EventDTO.toPublicResponse(
+                    event
+                )
         ),
-        page: parsedPage,
-        limit: parsedLimit,
+
+        page:
+            parsedPage,
+
+        limit:
+            parsedLimit,
+
         total,
-        totalPages: Math.ceil(
-            total / parsedLimit
-        )
+
+        totalPages:
+            Math.ceil(
+                total /
+                parsedLimit
+            )
     };
 };
+
 
 export const updateEventStatusService = async (
     event,
@@ -439,7 +572,11 @@ export const updateEventStatusService = async (
     ];
 
 
-    if (!validStatuses.includes(newStatus)) {
+    if (
+        !validStatuses.includes(
+            newStatus
+        )
+    ) {
         const error = new Error(
             "El estado del evento no es válido"
         );
@@ -448,10 +585,12 @@ export const updateEventStatusService = async (
 
         throw error;
     }
-    
+
+
     if (
         newStatus === "published" &&
-        new Date(event.date) < new Date()
+        new Date(event.date) <
+        new Date()
     ) {
         const error = new Error(
             "No se puede publicar un evento cuya fecha ya pasó"
@@ -462,7 +601,10 @@ export const updateEventStatusService = async (
         throw error;
     }
 
-    if (event.status === "cancelled") {
+
+    if (
+        event.status === "cancelled"
+    ) {
         const error = new Error(
             "No se puede cambiar el estado de un evento cancelado"
         );
@@ -487,12 +629,14 @@ export const updateEventStatusService = async (
     }
 
 
-    const updatedEvent = await updateEvent(
-        event._id,
-        {
-            status: newStatus
-        }
-    );
+    const updatedEvent =
+        await updateEvent(
+            event._id,
+            {
+                status: newStatus
+            }
+        );
+
 
     return EventDTO.toStatusResponse(
         updatedEvent

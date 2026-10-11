@@ -6,17 +6,24 @@ import {
 } from "../services/tickets.service.js";
 
 
-export const createTicket = async (req, res, next) => {
+export const createTicket = async (
+    req,
+    res,
+    next
+) => {
     try {
-        const ticket = await createTicketService(
-            req.params.eid,
-            req.user.id,
-            req.body.quantity
-        );
+        const ticket =
+            await createTicketService(
+                req.params.eid,
+                req.user.id,
+                req.body?.quantity
+            );
+
 
         res.status(201).json({
             status: "success",
-            message: "Inscripción realizada correctamente",
+            message:
+                "Inscripción realizada correctamente",
             payload: ticket
         });
     } catch (error) {
@@ -25,11 +32,17 @@ export const createTicket = async (req, res, next) => {
 };
 
 
-export const getMyTickets = async (req, res, next) => {
+export const getMyTickets = async (
+    req,
+    res,
+    next
+) => {
     try {
-        const tickets = await getMyTicketsService(
-            req.user.id
-        );
+        const tickets =
+            await getMyTicketsService(
+                req.user.id
+            );
+
 
         res.status(200).json({
             status: "success",
@@ -41,12 +54,18 @@ export const getMyTickets = async (req, res, next) => {
 };
 
 
-export const getEventTickets = async (req, res, next) => {
+export const getEventTickets = async (
+    req,
+    res,
+    next
+) => {
     try {
-        const tickets = await getEventTicketsService(
-            req.params.eid,
-            req.user
-        );
+        const tickets =
+            await getEventTicketsService(
+                req.params.eid,
+                req.user
+            );
+
 
         res.status(200).json({
             status: "success",
@@ -58,16 +77,23 @@ export const getEventTickets = async (req, res, next) => {
 };
 
 
-export const cancelTicket = async (req, res, next) => {
+export const cancelTicket = async (
+    req,
+    res,
+    next
+) => {
     try {
-        const ticket = await cancelTicketService(
-            req.params.tid,
-            req.user
-        );
+        const ticket =
+            await cancelTicketService(
+                req.params.tid,
+                req.user
+            );
+
 
         res.status(200).json({
             status: "success",
-            message: "Inscripción cancelada correctamente",
+            message:
+                "Inscripción cancelada correctamente",
             payload: ticket
         });
     } catch (error) {

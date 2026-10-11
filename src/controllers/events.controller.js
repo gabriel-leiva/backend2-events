@@ -7,9 +7,17 @@ import {
 } from "../services/events.service.js";
 
 
-export const getEvents = async (req, res, next) => {
+export const getEvents = async (
+    req,
+    res,
+    next
+) => {
     try {
-        const result = await getEventsService(req.query);
+        const result =
+            await getEventsService(
+                req.query
+            );
+
 
         res.status(200).json({
             status: "success",
@@ -20,9 +28,18 @@ export const getEvents = async (req, res, next) => {
     }
 };
 
-export const getEventById = async (req, res, next) => {
+
+export const getEventById = async (
+    req,
+    res,
+    next
+) => {
     try {
-        const event = await getEventByIdService(req.params.id);
+        const event =
+            await getEventByIdService(
+                req.params.id
+            );
+
 
         res.status(200).json({
             status: "success",
@@ -34,12 +51,18 @@ export const getEventById = async (req, res, next) => {
 };
 
 
-export const createEvent = async (req, res, next) => {
+export const createEvent = async (
+    req,
+    res,
+    next
+) => {
     try {
-        const newEvent = await createEventService(
-            req.body,
-            req.user.id
-        );
+        const newEvent =
+            await createEventService(
+                req.body ?? {},
+                req.user.id
+            );
+
 
         res.status(201).json({
             status: "success",
@@ -51,12 +74,18 @@ export const createEvent = async (req, res, next) => {
 };
 
 
-export const updateEvent = async (req, res, next) => {
+export const updateEvent = async (
+    req,
+    res,
+    next
+) => {
     try {
-        const updatedEvent = await updateEventService(
-            req.event,
-            req.body
-        );
+        const updatedEvent =
+            await updateEventService(
+                req.event,
+                req.body ?? {}
+            );
+
 
         res.status(200).json({
             status: "success",
@@ -67,12 +96,19 @@ export const updateEvent = async (req, res, next) => {
     }
 };
 
-export const updateEventStatus = async (req, res, next) => {
+
+export const updateEventStatus = async (
+    req,
+    res,
+    next
+) => {
     try {
-        const updatedEvent = await updateEventStatusService(
-            req.event,
-            req.body.status
-        );
+        const updatedEvent =
+            await updateEventStatusService(
+                req.event,
+                req.body?.status
+            );
+
 
         res.status(200).json({
             status: "success",
