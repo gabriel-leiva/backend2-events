@@ -690,10 +690,9 @@ backend2-events/
 
 │   │
 
-│   ├── test/
-
-│   │   └── integration.test.js
-        └── validation.test.js
+│   ├── test/
+│   │   ├── integration.test.js
+│   │   └── validation.test.js
 
 │   │
 
