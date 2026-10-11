@@ -1,27 +1,49 @@
 import { TicketModel } from "../models/Ticket.js";
 
 
-export const createTicket = async (ticketData) => {
+export const createTicket = async (
+    ticketData,
+    session = null
+) => {
+    if (session) {
+        const [ticket] = await TicketModel.create(
+            [ticketData],
+            { session }
+        );
+
+        return ticket;
+    }
+
     return await TicketModel.create(ticketData);
 };
 
 
 export const findActiveTicketByUserAndEvent = async (
     userId,
-    eventId
+    eventId,
+    session = null
 ) => {
-    return await TicketModel.findOne({
+    const query = TicketModel.findOne({
         user: userId,
         event: eventId,
         status: {
             $in: ["confirmed", "pending"]
         }
     });
+
+    if (session) {
+        query.session(session);
+    }
+
+    return await query;
 };
 
 
-export const getReservedQuantityByEvent = async (eventId) => {
-    const result = await TicketModel.aggregate([
+export const getReservedQuantityByEvent = async (
+    eventId,
+    session = null
+) => {
+    const aggregation = TicketModel.aggregate([
         {
             $match: {
                 event: eventId,
@@ -39,6 +61,12 @@ export const getReservedQuantityByEvent = async (eventId) => {
             }
         }
     ]);
+
+    if (session) {
+        aggregation.session(session);
+    }
+
+    const result = await aggregation;
 
     return result[0]?.totalReserved || 0;
 };
@@ -64,21 +92,38 @@ export const findTicketsByEvent = async (eventId) => {
 };
 
 
-export const findTicketById = async (ticketId) => {
-    return await TicketModel.findById(ticketId);
+export const findTicketById = async (
+    ticketId,
+    session = null
+) => {
+    const query =
+        TicketModel.findById(ticketId);
+
+    if (session) {
+        query.session(session);
+    }
+
+    return await query;
 };
 
 
 export const updateTicketById = async (
     ticketId,
-    updateData
+    updateData,
+    session = null
 ) => {
+    const options = {
+        returnDocument: "after",
+        runValidators: true
+    };
+
+    if (session) {
+        options.session = session;
+    }
+
     return await TicketModel.findByIdAndUpdate(
         ticketId,
         updateData,
-        {
-            new: true,
-            runValidators: true
-        }
+        options
     );
 };

@@ -29,3 +29,32 @@ export const sendTicketConfirmationEmail = async ({
         `
     });
 };
+
+
+export const sendTicketCancellationEmail = async ({
+    to,
+    userName,
+    eventTitle,
+    reservationCode
+}) => {
+    await transporter.sendMail({
+        from: config.mailFrom,
+        to,
+        subject: "Cancelación de inscripción",
+        html: `
+            <h1>Inscripción cancelada</h1>
+
+            <p>
+                Hola ${userName},
+                tu inscripción al evento
+                <strong>${eventTitle}</strong>
+                fue cancelada correctamente.
+            </p>
+
+            <p>
+                Código de reserva:
+                <strong>${reservationCode}</strong>
+            </p>
+        `
+    });
+};

@@ -1,8 +1,14 @@
 import mongoose from "mongoose";
 import { randomUUID } from "node:crypto";
 
-import { getEventById } from "../repositories/events.repository.js";
-import { getUserById } from "../repositories/users.repository.js";
+import {
+    getEventById,
+    lockEventForReservation
+} from "../repositories/events.repository.js";
+
+import {
+    getUserById
+} from "../repositories/users.repository.js";
 
 import {
     saveTicket,
@@ -15,7 +21,8 @@ import {
 } from "../repositories/tickets.repository.js";
 
 import {
-    sendTicketConfirmationEmail
+    sendTicketConfirmationEmail,
+    sendTicketCancellationEmail
 } from "./mail.service.js";
 
 import {
@@ -44,41 +51,6 @@ export const createTicketService = async (
     }
 
 
-    const event = await getEventById(eventId);
-
-    if (!event) {
-        const error = new Error(
-            "Evento no encontrado"
-        );
-
-        error.statusCode = 404;
-
-        throw error;
-    }
-
-
-    if (event.status !== "published") {
-        const error = new Error(
-            "El evento no está disponible para inscripciones"
-        );
-
-        error.statusCode = 400;
-
-        throw error;
-    }
-
-
-    if (new Date(event.date) <= new Date()) {
-        const error = new Error(
-            "No es posible inscribirse a un evento finalizado"
-        );
-
-        error.statusCode = 400;
-
-        throw error;
-    }
-
-
     if (
         typeof quantity !== "number" ||
         !Number.isInteger(quantity) ||
@@ -86,43 +58,6 @@ export const createTicketService = async (
     ) {
         const error = new Error(
             "La cantidad debe ser un número entero mayor a 0"
-        );
-
-        error.statusCode = 400;
-
-        throw error;
-    }
-
-
-    const existingTicket =
-        await getActiveTicketByUserAndEvent(
-            userId,
-            event._id
-        );
-
-
-    if (existingTicket) {
-        const error = new Error(
-            "Ya tenés una inscripción activa para este evento"
-        );
-
-        error.statusCode = 409;
-
-        throw error;
-    }
-
-
-    const reservedQuantity =
-        await getReservedQuantity(event._id);
-
-
-    const availableCapacity =
-        event.capacity - reservedQuantity;
-
-
-    if (availableCapacity < quantity) {
-        const error = new Error(
-            "No hay cupos suficientes disponibles"
         );
 
         error.statusCode = 400;
@@ -148,20 +83,134 @@ export const createTicketService = async (
         generateReservationCode();
 
 
-    const ticket = await saveTicket({
-        user: userId,
-        event: event._id,
-        status: "confirmed",
-        quantity,
-        reservationCode
-    });
+    const session =
+        await mongoose.startSession();
+
+
+    let ticket;
+
+
+    try {
+        await session.withTransaction(
+            async () => {
+                const event =
+                    await lockEventForReservation(
+                        eventId,
+                        session
+                    );
+
+
+                if (!event) {
+                    const error = new Error(
+                        "Evento no encontrado"
+                    );
+
+                    error.statusCode = 404;
+
+                    throw error;
+                }
+
+
+                if (
+                    event.status !==
+                    "published"
+                ) {
+                    const error = new Error(
+                        "El evento no está disponible para inscripciones"
+                    );
+
+                    error.statusCode = 400;
+
+                    throw error;
+                }
+
+
+                if (
+                    new Date(event.date) <=
+                    new Date()
+                ) {
+                    const error = new Error(
+                        "No es posible inscribirse a un evento finalizado"
+                    );
+
+                    error.statusCode = 400;
+
+                    throw error;
+                }
+
+
+                const existingTicket =
+                    await getActiveTicketByUserAndEvent(
+                        userId,
+                        event._id,
+                        session
+                    );
+
+
+                if (existingTicket) {
+                    const error = new Error(
+                        "Ya tenés una inscripción activa para este evento"
+                    );
+
+                    error.statusCode = 409;
+
+                    throw error;
+                }
+
+
+                const reservedQuantity =
+                    await getReservedQuantity(
+                        event._id,
+                        session
+                    );
+
+
+                const availableCapacity =
+                    event.capacity -
+                    reservedQuantity;
+
+
+                if (
+                    availableCapacity <
+                    quantity
+                ) {
+                    const error = new Error(
+                        "No hay cupos suficientes disponibles"
+                    );
+
+                    error.statusCode = 400;
+
+                    throw error;
+                }
+
+
+                ticket = await saveTicket(
+                    {
+                        user: userId,
+                        event: event._id,
+                        status: "confirmed",
+                        quantity,
+                        reservationCode
+                    },
+                    session
+                );
+            }
+        );
+    } finally {
+        await session.endSession();
+    }
 
 
     try {
         await sendTicketConfirmationEmail({
             to: user.email,
             userName: user.first_name,
-            eventTitle: event.title,
+            eventTitle:
+                (
+                    await getEventById(
+                        ticket.event
+                    )
+                ).title,
             reservationCode
         });
     } catch (error) {
@@ -176,11 +225,15 @@ export const createTicketService = async (
 };
 
 
-export const getMyTicketsService = async (userId) => {
-    const tickets = await getTicketsByUser(userId);
+export const getMyTicketsService = async (
+    userId
+) => {
+    const tickets =
+        await getTicketsByUser(userId);
 
     return tickets.map(
-        ticket => TicketDTO.toPublicResponse(ticket)
+        ticket =>
+            TicketDTO.toPublicResponse(ticket)
     );
 };
 
@@ -189,7 +242,11 @@ export const getEventTicketsService = async (
     eventId,
     user
 ) => {
-    if (!mongoose.Types.ObjectId.isValid(eventId)) {
+    if (
+        !mongoose.Types.ObjectId.isValid(
+            eventId
+        )
+    ) {
         const error = new Error(
             "El ID del evento no es válido"
         );
@@ -200,7 +257,9 @@ export const getEventTicketsService = async (
     }
 
 
-    const event = await getEventById(eventId);
+    const event =
+        await getEventById(eventId);
+
 
     if (!event) {
         const error = new Error(
@@ -213,10 +272,13 @@ export const getEventTicketsService = async (
     }
 
 
-    const isAdmin = user.role === "admin";
+    const isAdmin =
+        user.role === "admin";
+
 
     const isOwner =
-        String(event.organizer) === String(user.id);
+        String(event.organizer) ===
+        String(user.id);
 
 
     if (!isAdmin && !isOwner) {
@@ -230,10 +292,13 @@ export const getEventTicketsService = async (
     }
 
 
-    const tickets = await getTicketsByEvent(event._id);
+    const tickets =
+        await getTicketsByEvent(event._id);
+
 
     return tickets.map(
-        ticket => TicketDTO.toPublicResponse(ticket)
+        ticket =>
+            TicketDTO.toPublicResponse(ticket)
     );
 };
 
@@ -242,7 +307,11 @@ export const cancelTicketService = async (
     ticketId,
     user
 ) => {
-    if (!mongoose.Types.ObjectId.isValid(ticketId)) {
+    if (
+        !mongoose.Types.ObjectId.isValid(
+            ticketId
+        )
+    ) {
         const error = new Error(
             "El ID del ticket no es válido"
         );
@@ -253,7 +322,9 @@ export const cancelTicketService = async (
     }
 
 
-    const ticket = await getTicketById(ticketId);
+    const ticket =
+        await getTicketById(ticketId);
+
 
     if (!ticket) {
         const error = new Error(
@@ -266,10 +337,13 @@ export const cancelTicketService = async (
     }
 
 
-    const isAdmin = user.role === "admin";
+    const isAdmin =
+        user.role === "admin";
+
 
     const isOwner =
-        String(ticket.user) === String(user.id);
+        String(ticket.user) ===
+        String(user.id);
 
 
     if (!isAdmin && !isOwner) {
@@ -283,7 +357,9 @@ export const cancelTicketService = async (
     }
 
 
-    if (ticket.status === "cancelled") {
+    if (
+        ticket.status === "cancelled"
+    ) {
         const error = new Error(
             "El ticket ya está cancelado"
         );
@@ -294,13 +370,45 @@ export const cancelTicketService = async (
     }
 
 
-    const cancelledTicket = await updateTicket(
-        ticket._id,
-        {
-            status: "cancelled",
-            cancelledAt: new Date()
+    const cancelledTicket =
+        await updateTicket(
+            ticket._id,
+            {
+                status: "cancelled",
+                cancelledAt:
+                    new Date()
+            }
+        );
+
+
+    try {
+        const [
+            ticketUser,
+            event
+        ] = await Promise.all([
+            getUserById(ticket.user),
+            getEventById(ticket.event)
+        ]);
+
+
+        if (ticketUser && event) {
+            await sendTicketCancellationEmail({
+                to: ticketUser.email,
+                userName:
+                    ticketUser.first_name,
+                eventTitle:
+                    event.title,
+                reservationCode:
+                    ticket.reservationCode
+            });
         }
-    );
+    } catch (error) {
+        console.error(
+            "No se pudo enviar el email de cancelación:",
+            error.message
+        );
+    }
+
 
     return TicketDTO.toPublicResponse(
         cancelledTicket

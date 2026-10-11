@@ -1,14 +1,36 @@
 import { EventModel } from "../models/Event.js";
 
 
-export const createEvent = async (eventData) => {
+export const createEvent = async (
+    eventData,
+    session = null
+) => {
+    if (session) {
+        const [event] = await EventModel.create(
+            [eventData],
+            { session }
+        );
+
+        return event;
+    }
+
     return await EventModel.create(eventData);
 };
 
 
-export const findEventById = async (eventId) => {
-    return await EventModel.findById(eventId);
+export const findEventById = async (
+    eventId,
+    session = null
+) => {
+    const query = EventModel.findById(eventId);
+
+    if (session) {
+        query.session(session);
+    }
+
+    return await query;
 };
+
 
 export const findEvents = async (
     filter,
@@ -29,13 +51,43 @@ export const countEvents = async (filter) => {
     return await EventModel.countDocuments(filter);
 };
 
-export const updateEventById = async (eventId, updateData) => {
+
+export const updateEventById = async (
+    eventId,
+    updateData,
+    session = null
+) => {
+    const options = {
+        returnDocument: "after",
+        runValidators: true
+    };
+
+    if (session) {
+        options.session = session;
+    }
+
     return await EventModel.findByIdAndUpdate(
         eventId,
         updateData,
+        options
+    );
+};
+
+
+export const incrementReservationVersion = async (
+    eventId,
+    session
+) => {
+    return await EventModel.findByIdAndUpdate(
+        eventId,
         {
-            new: true,
-            runValidators: true
+            $inc: {
+                reservationVersion: 1
+            }
+        },
+        {
+            returnDocument: "after",
+            session
         }
     );
 };

@@ -9,24 +9,38 @@ import {
 } from "../dao/tickets.dao.js";
 
 
-export const saveTicket = async (ticketData) => {
-    return await createTicket(ticketData);
+export const saveTicket = async (
+    ticketData,
+    session = null
+) => {
+    return await createTicket(
+        ticketData,
+        session
+    );
 };
 
 
 export const getActiveTicketByUserAndEvent = async (
     userId,
-    eventId
+    eventId,
+    session = null
 ) => {
     return await findActiveTicketByUserAndEvent(
         userId,
-        eventId
+        eventId,
+        session
     );
 };
 
 
-export const getReservedQuantity = async (eventId) => {
-    return await getReservedQuantityByEvent(eventId);
+export const getReservedQuantity = async (
+    eventId,
+    session = null
+) => {
+    return await getReservedQuantityByEvent(
+        eventId,
+        session
+    );
 };
 
 
@@ -40,17 +54,25 @@ export const getTicketsByEvent = async (eventId) => {
 };
 
 
-export const getTicketById = async (ticketId) => {
-    return await findTicketById(ticketId);
+export const getTicketById = async (
+    ticketId,
+    session = null
+) => {
+    return await findTicketById(
+        ticketId,
+        session
+    );
 };
 
 
 export const updateTicket = async (
     ticketId,
-    updateData
+    updateData,
+    session = null
 ) => {
     return await updateTicketById(
         ticketId,
-        updateData
+        updateData,
+        session
     );
 };
