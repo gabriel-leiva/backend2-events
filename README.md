@@ -2650,18 +2650,26 @@ Resultado:
 
 # Pruebas automatizadas de integración
 
+Los tests automatizados se encuentran en:
+
+```text
+src/test/integration.test.js
+src/test/validation.test.js
+```
+
+Las pruebas se dividen en dos grupos.
+
+## Flujo principal de integración
+
 Archivo:
 
 ```text
-
 src/test/integration.test.js
-
 ```
 
 El flujo automatizado principal verifica:
 
 ```text
-
 register
    ↓
 login
@@ -2679,36 +2687,38 @@ my tickets
 event tickets
    ↓
 cancel ticket
-
 ```
 
 También se comprueba:
 
 - email duplicado → `409`;
-
 - `/current` sin `password`;
-
 - ruta protegida sin sesión → `401`;
-
 - usuario autenticado sin permisos → `403`;
-
 - inscripción duplicada → `409`;
-
 - usuario poblado sin `password`;
-
 - conjunto exacto de campos permitidos en el usuario poblado;
-
 - email de confirmación;
-
 - email de cancelación.
 
+## Validaciones defensivas
+
+Archivo:
+
+```text
+src/test/validation.test.js
+```
+
+Se verifican además los siguientes casos defensivos:
+
 - campos internos enviados por el cliente son ignorados;
+- campos internos no pueden modificarse mediante `PUT`;
+- cambio de estado sin body devuelve `400`;
+- inscripción sin `quantity` devuelve `400`.
 
-- campos internos no pueden modificarse mediante PUT;
+Estas pruebas permiten comprobar que los datos internos del sistema no puedan ser modificados directamente desde el cliente y que las solicitudes incompletas sean rechazadas con errores controlados.
 
-- cambio de estado sin body devuelve 400;
-
-- inscripción sin quantity devuelve 400.
+---
 
 ## Test de concurrencia
 
