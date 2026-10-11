@@ -2709,14 +2709,14 @@ Archivo:
 src/test/validation.test.js
 ```
 
-Se verifican además los siguientes casos defensivos:
+Se verifican los siguientes casos:
 
 - campos internos enviados por el cliente son ignorados;
 - campos internos no pueden modificarse mediante `PUT`;
 - cambio de estado sin body devuelve `400`;
 - inscripción sin `quantity` devuelve `400`.
 
-Estas pruebas permiten comprobar que los datos internos del sistema no puedan ser modificados directamente desde el cliente y que las solicitudes incompletas sean rechazadas con errores controlados.
+Estas pruebas permiten comprobar que los datos internos del sistema no puedan ser modificados directamente desde el cliente y que las solicitudes incompletas sean rechazadas mediante errores controlados.
 
 ---
 
