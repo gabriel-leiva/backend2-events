@@ -250,8 +250,8 @@ Estado verificado:
 
 ```text
 
-tests 18
-pass 18
+tests 23
+pass 23
 fail 0
 
 ```
@@ -693,6 +693,7 @@ backend2-events/
 │   ├── test/
 
 │   │   └── integration.test.js
+        └── validation.test.js
 
 │   │
 
@@ -2701,6 +2702,14 @@ También se comprueba:
 - email de confirmación;
 
 - email de cancelación.
+
+- campos internos enviados por el cliente son ignorados;
+
+- campos internos no pueden modificarse mediante PUT;
+
+- cambio de estado sin body devuelve 400;
+
+- inscripción sin quantity devuelve 400.
 
 ## Test de concurrencia
 
