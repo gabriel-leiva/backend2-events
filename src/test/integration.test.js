@@ -22,25 +22,25 @@ let createHash;
 let sentEmails = 0;
 
 
-const createOrganizerFixture = async (
-    organizerData
+const createRoleFixture = async (
+    userData,
+    role
 ) => {
     const hashedPassword =
         await createHash(
-            organizerData.password
+            userData.password
         );
-
 
     return await saveUser({
         first_name:
-            organizerData.first_name,
+            userData.first_name,
         last_name:
-            organizerData.last_name,
+            userData.last_name,
         email:
-            organizerData.email,
+            userData.email,
         password:
             hashedPassword,
-        role: "organizer"
+        role
     });
 };
 
@@ -123,13 +123,22 @@ after(async () => {
 
 
 test(
-    "flujo completo de integración de usuarios, eventos y tickets",
+    "flujo completo final de usuarios, eventos y tickets",
     async (t) => {
 
         const userAgent =
             request.agent(app);
 
+        const secondUserAgent =
+            request.agent(app);
+
         const organizerAgent =
+            request.agent(app);
+
+        const secondOrganizerAgent =
+            request.agent(app);
+
+        const adminAgent =
             request.agent(app);
 
 
@@ -141,11 +150,37 @@ test(
         };
 
 
+        const secondUserData = {
+            first_name: "Usuario",
+            last_name: "Segundo",
+            email:
+                "second.user.test@example.com",
+            password: "Test12345"
+        };
+
+
         const organizerData = {
             first_name: "Organizer",
-            last_name: "Test",
+            last_name: "Principal",
             email:
                 "organizer.test@example.com",
+            password: "Test12345"
+        };
+
+
+        const secondOrganizerData = {
+            first_name: "Organizer",
+            last_name: "Secundario",
+            email:
+                "second.organizer.test@example.com",
+            password: "Test12345"
+        };
+
+
+        const adminData = {
+            first_name: "Admin",
+            last_name: "Test",
+            email: "admin.test@example.com",
             password: "Test12345"
         };
 
@@ -153,16 +188,24 @@ test(
         let eventId;
         let ticketId;
 
+        let foreignEventId;
+
+        let capacityEventId;
+        let capacityTicketId;
+
 
         await t.test(
-            "registro de usuario",
+            "registro público ignora role y crea user",
             async () => {
                 const response =
                     await userAgent
                         .post(
                             "/api/sessions/register"
                         )
-                        .send(userData)
+                        .send({
+                            ...userData,
+                            role: "admin"
+                        })
                         .expect(201);
 
 
@@ -175,6 +218,12 @@ test(
                 assert.equal(
                     response.body.payload.email,
                     userData.email
+                );
+
+
+                assert.equal(
+                    response.body.payload.role,
+                    "user"
                 );
 
 
@@ -200,11 +249,26 @@ test(
 
 
         await t.test(
-            "se crea fixture del organizer",
+            "se crean fixtures organizer, segundo organizer y admin",
             async () => {
                 const organizer =
-                    await createOrganizerFixture(
-                        organizerData
+                    await createRoleFixture(
+                        organizerData,
+                        "organizer"
+                    );
+
+
+                const secondOrganizer =
+                    await createRoleFixture(
+                        secondOrganizerData,
+                        "organizer"
+                    );
+
+
+                const admin =
+                    await createRoleFixture(
+                        adminData,
+                        "admin"
                     );
 
 
@@ -215,8 +279,14 @@ test(
 
 
                 assert.equal(
-                    organizer.email,
-                    organizerData.email
+                    secondOrganizer.role,
+                    "organizer"
+                );
+
+
+                assert.equal(
+                    admin.role,
+                    "admin"
                 );
             }
         );
@@ -266,13 +336,43 @@ test(
 
 
         await t.test(
-            "ruta protegida sin sesión devuelve 401",
+            "logout elimina la sesión",
             async () => {
-                await request(app)
+                await userAgent
+                    .post(
+                        "/api/sessions/logout"
+                    )
+                    .expect(200);
+            }
+        );
+
+
+        await t.test(
+            "current después de logout devuelve 401",
+            async () => {
+                await userAgent
                     .get(
-                        "/api/tickets/my-tickets"
+                        "/api/sessions/current"
                     )
                     .expect(401);
+            }
+        );
+
+
+        await t.test(
+            "usuario vuelve a iniciar sesión",
+            async () => {
+                await userAgent
+                    .post(
+                        "/api/sessions/login"
+                    )
+                    .send({
+                        email:
+                            userData.email,
+                        password:
+                            userData.password
+                    })
+                    .expect(200);
             }
         );
 
@@ -318,6 +418,42 @@ test(
                             organizerData.email,
                         password:
                             organizerData.password
+                    })
+                    .expect(200);
+            }
+        );
+
+
+        await t.test(
+            "login del segundo organizer",
+            async () => {
+                await secondOrganizerAgent
+                    .post(
+                        "/api/sessions/login"
+                    )
+                    .send({
+                        email:
+                            secondOrganizerData.email,
+                        password:
+                            secondOrganizerData.password
+                    })
+                    .expect(200);
+            }
+        );
+
+
+        await t.test(
+            "login del admin",
+            async () => {
+                await adminAgent
+                    .post(
+                        "/api/sessions/login"
+                    )
+                    .send({
+                        email:
+                            adminData.email,
+                        password:
+                            adminData.password
                     })
                     .expect(200);
             }
@@ -384,7 +520,30 @@ test(
 
 
         await t.test(
-            "usuario se inscribe",
+            "respuesta de evento no contiene password",
+            async () => {
+                const response =
+                    await request(app)
+                        .get(
+                            `/api/events/${eventId}`
+                        )
+                        .expect(200);
+
+
+                assert.equal(
+                    JSON.stringify(
+                        response.body
+                    ).includes(
+                        "\"password\""
+                    ),
+                    false
+                );
+            }
+        );
+
+
+        await t.test(
+            "usuario se inscribe y recibe ticket",
             async () => {
                 const response =
                     await userAgent
@@ -407,6 +566,16 @@ test(
                 assert.equal(
                     response.body.payload.status,
                     "confirmed"
+                );
+
+
+                assert.equal(
+                    JSON.stringify(
+                        response.body
+                    ).includes(
+                        "\"password\""
+                    ),
+                    false
                 );
             }
         );
@@ -449,6 +618,16 @@ test(
                         .payload[0]
                         .status,
                     "confirmed"
+                );
+
+
+                assert.equal(
+                    JSON.stringify(
+                        response.body
+                    ).includes(
+                        "\"password\""
+                    ),
+                    false
                 );
             }
         );
@@ -498,7 +677,7 @@ test(
 
 
         await t.test(
-            "usuario cancela ticket",
+            "usuario cancela su ticket",
             async () => {
                 const response =
                     await userAgent
@@ -524,11 +703,321 @@ test(
 
 
         await t.test(
-            "se ejecutaron los emails de confirmación y cancelación",
+            "segundo organizer crea evento propio",
+            async () => {
+                const response =
+                    await secondOrganizerAgent
+                        .post(
+                            "/api/events"
+                        )
+                        .send({
+                            title:
+                                "Evento de otro organizer",
+                            description:
+                                "Prueba de permisos",
+                            category:
+                                "Test",
+                            date:
+                                new Date(
+                                    Date.now() +
+                                    86400000 * 40
+                                ).toISOString(),
+                            location:
+                                "Mar del Plata",
+                            capacity: 10,
+                            price: 0
+                        })
+                        .expect(201);
+
+
+                foreignEventId =
+                    response.body.payload.id;
+
+
+                assert.ok(
+                    foreignEventId
+                );
+            }
+        );
+
+
+        await t.test(
+            "organizer no puede modificar evento ajeno",
+            async () => {
+                await organizerAgent
+                    .put(
+                        `/api/events/${foreignEventId}`
+                    )
+                    .send({
+                        title:
+                            "Modificación prohibida"
+                    })
+                    .expect(403);
+            }
+        );
+
+
+        await t.test(
+            "admin modifica evento de otro organizer",
+            async () => {
+                const response =
+                    await adminAgent
+                        .put(
+                            `/api/events/${foreignEventId}`
+                        )
+                        .send({
+                            title:
+                                "Evento modificado por admin"
+                        })
+                        .expect(200);
+
+
+                assert.equal(
+                    response.body.payload.title,
+                    "Evento modificado por admin"
+                );
+            }
+        );
+
+
+        await t.test(
+            "se registra segundo usuario",
+            async () => {
+                const response =
+                    await secondUserAgent
+                        .post(
+                            "/api/sessions/register"
+                        )
+                        .send(
+                            secondUserData
+                        )
+                        .expect(201);
+
+
+                assert.equal(
+                    response.body.payload.role,
+                    "user"
+                );
+            }
+        );
+
+
+        await t.test(
+            "login del segundo usuario",
+            async () => {
+                await secondUserAgent
+                    .post(
+                        "/api/sessions/login"
+                    )
+                    .send({
+                        email:
+                            secondUserData.email,
+                        password:
+                            secondUserData.password
+                    })
+                    .expect(200);
+            }
+        );
+
+
+        await t.test(
+            "organizer crea evento con un solo cupo",
+            async () => {
+                const response =
+                    await organizerAgent
+                        .post(
+                            "/api/events"
+                        )
+                        .send({
+                            title:
+                                "Evento cupo único",
+                            description:
+                                "Prueba de liberación de cupo",
+                            category:
+                                "Test",
+                            date:
+                                new Date(
+                                    Date.now() +
+                                    86400000 * 50
+                                ).toISOString(),
+                            location:
+                                "Mar del Plata",
+                            capacity: 1,
+                            price: 0
+                        })
+                        .expect(201);
+
+
+                capacityEventId =
+                    response.body.payload.id;
+
+
+                assert.ok(
+                    capacityEventId
+                );
+            }
+        );
+
+
+        await t.test(
+            "organizer publica evento de cupo único",
+            async () => {
+                await organizerAgent
+                    .patch(
+                        `/api/events/${capacityEventId}/status`
+                    )
+                    .send({
+                        status: "published"
+                    })
+                    .expect(200);
+            }
+        );
+
+
+        await t.test(
+            "primer usuario ocupa el último cupo",
+            async () => {
+                const response =
+                    await userAgent
+                        .post(
+                            `/api/events/${capacityEventId}/tickets`
+                        )
+                        .send({
+                            quantity: 1
+                        })
+                        .expect(201);
+
+
+                capacityTicketId =
+                    response.body.payload._id;
+
+
+                assert.ok(
+                    capacityTicketId
+                );
+            }
+        );
+
+
+        await t.test(
+            "segundo usuario recibe 409 cuando no hay cupo",
+            async () => {
+                const response =
+                    await secondUserAgent
+                        .post(
+                            `/api/events/${capacityEventId}/tickets`
+                        )
+                        .send({
+                            quantity: 1
+                        })
+                        .expect(409);
+
+
+                assert.equal(
+                    response.body.message,
+                    "No hay cupos suficientes disponibles"
+                );
+            }
+        );
+
+
+        await t.test(
+            "primer usuario cancela y libera el cupo",
+            async () => {
+                const response =
+                    await userAgent
+                        .patch(
+                            `/api/tickets/${capacityTicketId}/cancel`
+                        )
+                        .expect(200);
+
+
+                assert.equal(
+                    response.body.payload.status,
+                    "cancelled"
+                );
+            }
+        );
+
+
+        await t.test(
+            "segundo usuario puede inscribirse después de liberar el cupo",
+            async () => {
+                const response =
+                    await secondUserAgent
+                        .post(
+                            `/api/events/${capacityEventId}/tickets`
+                        )
+                        .send({
+                            quantity: 1
+                        })
+                        .expect(201);
+
+
+                assert.equal(
+                    response.body.payload.status,
+                    "confirmed"
+                );
+            }
+        );
+
+
+        await t.test(
+            "listado publicado devuelve estructura paginada",
+            async () => {
+                const response =
+                    await request(app)
+                        .get(
+                            "/api/events?status=published&page=2&limit=5"
+                        )
+                        .expect(200);
+
+
+                assert.equal(
+                    response.body.status,
+                    "success"
+                );
+
+
+                assert.ok(
+                    Array.isArray(
+                        response.body.data
+                    )
+                );
+
+
+                assert.equal(
+                    response.body.page,
+                    2
+                );
+
+
+                assert.equal(
+                    response.body.limit,
+                    5
+                );
+
+
+                assert.equal(
+                    typeof response.body.total,
+                    "number"
+                );
+
+
+                assert.equal(
+                    typeof response.body.totalPages,
+                    "number"
+                );
+            }
+        );
+
+
+        await t.test(
+            "se ejecutaron emails de confirmación y cancelación",
             async () => {
                 assert.equal(
                     sentEmails,
-                    2
+                    5
                 );
             }
         );
@@ -577,13 +1066,16 @@ test(
         };
 
 
-        await createOrganizerFixture(
-            organizerData
+        await createRoleFixture(
+            organizerData,
+            "organizer"
         );
 
 
         await organizerAgent
-            .post("/api/sessions/login")
+            .post(
+                "/api/sessions/login"
+            )
             .send({
                 email:
                     organizerData.email,
@@ -594,13 +1086,17 @@ test(
 
 
         await userOneAgent
-            .post("/api/sessions/register")
+            .post(
+                "/api/sessions/register"
+            )
             .send(userOneData)
             .expect(201);
 
 
         await userOneAgent
-            .post("/api/sessions/login")
+            .post(
+                "/api/sessions/login"
+            )
             .send({
                 email:
                     userOneData.email,
@@ -611,13 +1107,17 @@ test(
 
 
         await userTwoAgent
-            .post("/api/sessions/register")
+            .post(
+                "/api/sessions/register"
+            )
             .send(userTwoData)
             .expect(201);
 
 
         await userTwoAgent
-            .post("/api/sessions/login")
+            .post(
+                "/api/sessions/login"
+            )
             .send({
                 email:
                     userTwoData.email,
@@ -629,7 +1129,9 @@ test(
 
         const eventResponse =
             await organizerAgent
-                .post("/api/events")
+                .post(
+                    "/api/events"
+                )
                 .send({
                     title:
                         "Evento último cupo",
@@ -700,7 +1202,7 @@ test(
 
         assert.deepEqual(
             statusCodes,
-            [201, 400]
+            [201, 409]
         );
 
 
@@ -711,7 +1213,7 @@ test(
 
 
         const rejectedResponse =
-            responseOne.status === 400
+            responseOne.status === 409
                 ? responseOne
                 : responseTwo;
 

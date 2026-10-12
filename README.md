@@ -267,8 +267,8 @@ La suite fue verificada nuevamente después de eliminar `node_modules` y realiza
 Resultado de la ejecución:
 
 ```text
-tests 23
-pass 23
+tests 40
+pass 40
 fail 0
 cancelled 0
 skipped 0
@@ -781,6 +781,152 @@ backend2-events/
 | GET | `/api/users` | `admin` | Lista usuarios |
 
 ---
+
+# Usuarios de prueba y creación de roles
+
+El registro público crea siempre usuarios con rol:
+
+```text
+user
+```
+
+Por seguridad, el endpoint:
+
+```http
+POST /api/sessions/register
+```
+
+no permite asignar los roles `organizer` ni `admin` desde el body.
+
+Esto evita que un cliente pueda registrarse públicamente con permisos elevados.
+
+## Crear un usuario común
+
+Realizar:
+
+```http
+POST /api/sessions/register
+```
+
+Body de ejemplo:
+
+```json
+{
+  "first_name": "Usuario",
+  "last_name": "Prueba",
+  "email": "user@test.com",
+  "password": "Test12345"
+}
+```
+
+El usuario se almacena automáticamente con:
+
+```text
+role: user
+```
+
+---
+
+## Crear un organizer de prueba
+
+Primero registrar el usuario normalmente:
+
+```http
+POST /api/sessions/register
+```
+
+```json
+{
+  "first_name": "Organizer",
+  "last_name": "Prueba",
+  "email": "organizer@test.com",
+  "password": "Test12345"
+}
+```
+
+Luego, desde MongoDB Atlas, MongoDB Compass o `mongosh`, modificar únicamente su rol:
+
+```javascript
+db.users.updateOne(
+  { email: "organizer@test.com" },
+  { $set: { role: "organizer" } }
+)
+```
+
+Después podrá iniciar sesión normalmente mediante:
+
+```http
+POST /api/sessions/login
+```
+
+con:
+
+```json
+{
+  "email": "organizer@test.com",
+  "password": "Test12345"
+}
+```
+
+---
+
+## Crear un admin de prueba
+
+Primero registrar el usuario normalmente:
+
+```http
+POST /api/sessions/register
+```
+
+```json
+{
+  "first_name": "Admin",
+  "last_name": "Prueba",
+  "email": "admin@test.com",
+  "password": "Test12345"
+}
+```
+
+Luego modificar su rol directamente en la base de datos:
+
+```javascript
+db.users.updateOne(
+  { email: "admin@test.com" },
+  { $set: { role: "admin" } }
+)
+```
+
+Después podrá iniciar sesión mediante:
+
+```http
+POST /api/sessions/login
+```
+
+con:
+
+```json
+{
+  "email": "admin@test.com",
+  "password": "Test12345"
+}
+```
+
+---
+
+## Resumen de usuarios para pruebas
+
+| Usuario | Email | Rol |
+|---|---|---|
+| Usuario común | `user@test.com` | `user` |
+| Organizador | `organizer@test.com` | `organizer` |
+| Administrador | `admin@test.com` | `admin` |
+
+Las contraseñas de los ejemplos son únicamente ilustrativas para un entorno local de prueba.
+
+En producción no deben utilizarse estas credenciales.
+
+La modificación manual del rol se utiliza solamente para preparar usuarios de prueba. El registro público continúa asignando siempre el rol `user`.
+
 
 # Roles y autorización
 
@@ -1750,19 +1896,11 @@ cantidad reservada activa
 
 Si:
 
-```text
-
 cantidad solicitada > capacidad disponible
-
-```
 
 la API devuelve:
 
-```text
-
-400 Bad Request
-
-```
+409 Conflict
 
 ---
 
@@ -1988,73 +2126,265 @@ Los tickets cancelados dejan de ocupar cupo.
 
 ---
 
-# Flujo de inscripción
+# Flujo completo de autenticación e inscripción
+
+El flujo principal de uso de la API combina autenticación mediante JWT, autorización por roles, gestión de eventos e inscripción mediante tickets.
+
+## 1. Registro del usuario
+
+```http
+POST /api/sessions/register
+```
+
+El registro público:
+
+- crea siempre un usuario con rol `user`;
+- hashea la contraseña mediante bcrypt;
+- no permite asignar roles privilegiados desde el body;
+- nunca devuelve el campo `password`.
+
+---
+
+## 2. Inicio de sesión
+
+```http
+POST /api/sessions/login
+```
+
+Si las credenciales son correctas:
 
 ```text
-
-POST /api/events/:eid/tickets
-
-        ↓
-
-Passport
-
-        ↓
-
-Controller
-
-        ↓
-
-Ticket Service
-
-        ↓
-
-iniciar transacción
-
-        ↓
-
-Event Repository
-
-        ↓
-
-bloqueo lógico + validar evento
-
-        ↓
-
-Ticket Repository
-
-        ↓
-
-validar duplicado
-
-        ↓
-
-calcular capacidad
-
-        ↓
-
-Ticket DAO
-
-        ↓
-
-crear ticket
-
-        ↓
-
-commit
-
-        ↓
-
-email de confirmación
-
-        ↓
-
-TicketDTO
-
-        ↓
-
-201 Created
-
+Passport Local
+        ↓
+validación de credenciales
+        ↓
+generación del JWT
+        ↓
+cookie httpOnly currentUser
 ```
+
+El JWT contiene únicamente:
+
+```text
+id
+email
+role
+```
+
+---
+
+## 3. Consulta de la sesión actual
+
+```http
+GET /api/sessions/current
+```
+
+La estrategia Passport `current` obtiene el JWT desde la cookie, valida la sesión y devuelve los datos públicos del usuario mediante `UserDTO`.
+
+Una solicitud sin una sesión válida devuelve:
+
+```text
+401 Unauthorized
+```
+
+---
+
+## 4. Creación y publicación del evento
+
+Un usuario con rol `organizer` o `admin` puede crear un evento:
+
+```http
+POST /api/events
+```
+
+El nuevo evento se crea inicialmente con:
+
+```text
+status: draft
+```
+
+Luego, el organizer dueño o un admin puede publicarlo:
+
+```http
+PATCH /api/events/:id/status
+```
+
+Body:
+
+```json
+{
+  "status": "published"
+}
+```
+
+Solo los eventos publicados y con fecha futura admiten inscripciones.
+
+---
+
+## 5. Inscripción del usuario
+
+Con una sesión válida, el usuario realiza:
+
+```http
+POST /api/events/:eid/tickets
+```
+
+Body:
+
+```json
+{
+  "quantity": 1
+}
+```
+
+Flujo interno:
+
+```text
+Passport current
+        ↓
+Controller
+        ↓
+Ticket Service
+        ↓
+inicio de transacción MongoDB
+        ↓
+bloqueo lógico del evento
+        ↓
+validar evento publicado y fecha
+        ↓
+validar inscripción duplicada
+        ↓
+calcular capacidad disponible
+        ↓
+crear ticket
+        ↓
+commit de la transacción
+        ↓
+email de confirmación
+        ↓
+TicketDTO
+        ↓
+201 Created
+```
+
+La respuesta nunca contiene contraseñas.
+
+---
+
+## 6. Conflictos de inscripción
+
+Si el usuario ya posee una inscripción activa para el mismo evento:
+
+```text
+409 Conflict
+```
+
+Si no existe capacidad suficiente:
+
+```text
+409 Conflict
+```
+
+Los controles de capacidad se realizan dentro de una transacción para evitar sobreventa ante solicitudes concurrentes.
+
+---
+
+## 7. Consulta de tickets propios
+
+```http
+GET /api/tickets/my-tickets
+```
+
+Devuelve solamente las inscripciones del usuario autenticado.
+
+Los datos básicos del evento se obtienen mediante `populate` y pasan por `TicketDTO`.
+
+---
+
+## 8. Cancelación de la inscripción
+
+```http
+PATCH /api/tickets/:tid/cancel
+```
+
+El dueño del ticket o un administrador pueden cancelarlo.
+
+La operación modifica:
+
+```text
+status → cancelled
+cancelledAt → fecha actual
+```
+
+El ticket no se elimina físicamente.
+
+Los tickets cancelados dejan de contar como cupo ocupado, por lo que la capacidad queda disponible nuevamente para futuras inscripciones.
+
+Después de la cancelación se intenta enviar el email correspondiente.
+
+---
+
+## 9. Cierre de sesión
+
+```http
+POST /api/sessions/logout
+```
+
+El servidor elimina la cookie:
+
+```text
+currentUser
+```
+
+Después del logout:
+
+```http
+GET /api/sessions/current
+```
+
+debe devolver:
+
+```text
+401 Unauthorized
+```
+
+---
+
+## Resumen del flujo
+
+```text
+registro
+   ↓
+login
+   ↓
+JWT en cookie httpOnly
+   ↓
+/current
+   ↓
+evento publicado
+   ↓
+inscripción
+   ↓
+control de duplicado y cupo
+   ↓
+ticket confirmado
+   ↓
+email de confirmación
+   ↓
+consulta de tickets
+   ↓
+cancelación
+   ↓
+liberación de cupo
+   ↓
+email de cancelación
+   ↓
+logout
+   ↓
+/current → 401
+```
+
+Este flujo se encuentra cubierto por los tests automatizados de integración.
 
 ---
 
