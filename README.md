@@ -1896,11 +1896,15 @@ cantidad reservada activa
 
 Si:
 
+```text
 cantidad solicitada > capacidad disponible
+```
 
 la API devuelve:
 
+```text
 409 Conflict
+```
 
 ---
 
