@@ -276,8 +276,6 @@ skipped 0
 
 ---
 
----
-
 ## Base de datos
 
 El proyecto utiliza **MongoDB Atlas** como base de datos y **Mongoose** para la definición de schemas y modelos.
