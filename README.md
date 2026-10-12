@@ -570,7 +570,7 @@ Por ejemplo, si un ticket contiene un usuario poblado, `TicketDTO` permite expon
 
 ```text
 
-_id
+id
 
 first_name
 
@@ -2078,7 +2078,7 @@ Se pueden exponer:
 
 ```text
 
-_id
+id
 
 first_name
 

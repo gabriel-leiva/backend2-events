@@ -557,7 +557,7 @@ test(
 
 
                 ticketId =
-                    response.body.payload._id;
+                    response.body.payload.id;
 
 
                 assert.ok(ticketId);
@@ -666,7 +666,7 @@ test(
                             .user
                     ).sort(),
                     [
-                        "_id",
+                        "id",
                         "email",
                         "first_name",
                         "last_name"
@@ -889,7 +889,7 @@ test(
 
 
                 capacityTicketId =
-                    response.body.payload._id;
+                    response.body.payload.id;
 
 
                 assert.ok(

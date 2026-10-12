@@ -16,7 +16,9 @@ export class TicketDTO {
             typeof ticket.user === "object" &&
             ticket.user.email
                 ? {
-                    _id: ticket.user._id,
+                    id:
+                        ticket.user._id ??
+                        ticket.user.id,
                     first_name:
                         ticket.user.first_name,
                     last_name:
@@ -32,7 +34,9 @@ export class TicketDTO {
             typeof ticket.event === "object" &&
             ticket.event.title
                 ? {
-                    _id: ticket.event._id,
+                    id:
+                        ticket.event._id ??
+                        ticket.event.id,
                     title:
                         ticket.event.title,
                     date:
@@ -44,7 +48,7 @@ export class TicketDTO {
 
 
         return {
-            _id: ticket._id,
+            id: ticket._id ?? ticket.id,
             user,
             event,
             status: ticket.status,
@@ -56,8 +60,7 @@ export class TicketDTO {
             createdAt:
                 ticket.createdAt,
             updatedAt:
-                ticket.updatedAt,
-            __v: ticket.__v
+                ticket.updatedAt
         };
     }
 }

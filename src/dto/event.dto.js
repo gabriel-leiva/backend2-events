@@ -11,7 +11,7 @@ export class EventDTO {
                 : { ...eventRaw };
 
         return {
-            _id: event._id,
+            id: event._id ?? event.id,
             title: event.title,
             description: event.description,
             category: event.category,
@@ -22,8 +22,7 @@ export class EventDTO {
             status: event.status,
             organizer: event.organizer,
             createdAt: event.createdAt,
-            updatedAt: event.updatedAt,
-            __v: event.__v
+            updatedAt: event.updatedAt
         };
     }
 
