@@ -214,47 +214,41 @@ http://localhost:8080
 
 ---
 
-## Tests automatizados
+> node --test
 
-El proyecto incluye tests automatizados de integración.
-
-Para ejecutarlos:
-
-```bash
-
-npm test
-
-```
-
-El script configurado en `package.json` utiliza:
-
-```text
-
-node --test
-
-```
-
-Las pruebas utilizan:
-
-- Node.js Test Runner;
-
-- Supertest;
-
-- mongodb-memory-server;
-
-- `MongoMemoryReplSet`.
-
-La base de datos utilizada durante los tests es temporal y se ejecuta como replica set. Esto permite probar transacciones de MongoDB sin utilizar ni modificar la base de datos real de MongoDB Atlas.
-
-Estado verificado:
-
-```text
-
-tests 23
-pass 23
-fail 0
-
-```
+▶ flujo completo de integración de usuarios, eventos y tickets
+  ✔ registro de usuario (196.762ms)
+  ✔ email duplicado devuelve 409 (17.2962ms)
+  ✔ se crea fixture del organizer (69.5797ms)
+  ✔ login de usuario (77.441ms)
+  ✔ current no expone password (13.7198ms)
+  ✔ ruta protegida sin sesión devuelve 401 (8.4495ms)
+  ✔ user no puede crear eventos (13.1ms)
+  ✔ login del organizer (72.847ms)
+  ✔ organizer crea evento (18.9224ms)
+  ✔ organizer publica evento (29.3541ms)
+  ✔ usuario se inscribe (44.83ms)
+  ✔ inscripción duplicada devuelve 409 (20.8571ms)
+  ✔ usuario consulta sus tickets (26.8982ms)
+  ✔ populate de usuario no expone password (22.8852ms)
+  ✔ usuario cancela ticket (29.8087ms)
+  ✔ se ejecutaron los emails de confirmación y cancelación (0.3481ms)
+✔ flujo completo de integración de usuarios, eventos y tickets (2478.8395ms)
+✔ la concurrencia no permite sobreventa del último cupo (537.5525ms)
+▶ validaciones defensivas de eventos y tickets
+  ✔ campos internos enviados por cliente son ignorados (35.1326ms)
+  ✔ campos internos tampoco pueden modificarse con PUT (31.5745ms)
+  ✔ cambio de estado sin body devuelve 400 (12.6632ms)
+  ✔ inscripción sin quantity devuelve 400 (11.9361ms)
+✔ validaciones defensivas de eventos y tickets (2311.7876ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5004.3321
 
 ---
 
