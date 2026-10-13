@@ -276,6 +276,154 @@ skipped 0
 
 ---
 
+## Colección Postman de entrega final
+
+El repositorio incluye una colección de Postman preparada para reproducir los principales flujos funcionales solicitados en la entrega final.
+
+Archivo:
+
+```text
+docs/postman/Backend2-Events.postman_collection.json
+```
+
+### Importación
+
+En Postman:
+
+1. Seleccionar **Import**.
+2. Elegir el archivo `Backend2-Events.postman_collection.json`.
+3. Verificar que la variable de colección `baseUrl` tenga como valor:
+
+```text
+http://localhost:8080
+```
+
+4. Iniciar previamente la API mediante:
+
+```bash
+npm start
+```
+
+o:
+
+```bash
+npm run dev
+```
+
+### Usuarios necesarios
+
+El registro público crea siempre usuarios con rol `user`.
+
+Por este motivo, antes de ejecutar los casos que requieren permisos elevados deben existir:
+
+```text
+organizer@test.com  → organizer
+organizer2@test.com → organizer
+admin@test.com      → admin
+```
+
+La forma de crear estos usuarios y modificar sus roles para pruebas se encuentra documentada en la sección **Usuarios de prueba y creación de roles** de este README.
+
+El segundo usuario común utilizado para las pruebas de capacidad es creado automáticamente por la propia colección.
+
+### Flujo incluido
+
+La colección está organizada en el siguiente orden:
+
+```text
+00 - Health
+
+01 - Autenticación
+     register
+     login
+     current
+     logout
+     current → 401
+     user crea evento → 403
+
+02 - Evento principal e inscripción
+     organizer crea evento
+     organizer publica evento
+     user se inscribe → 201
+     inscripción duplicada → 409
+     my-tickets
+     organizer consulta inscriptos
+     user cancela ticket
+
+03 - Ownership y admin
+     segundo organizer crea evento
+     organizer intenta modificar evento ajeno → 403
+     admin modifica evento ajeno → 200
+
+04 - Capacidad y liberación de cupo
+     evento con capacity = 1
+     primer usuario ocupa el último cupo
+     segundo usuario intenta inscribirse → 409
+     primer usuario cancela
+     el cupo queda nuevamente disponible
+     segundo usuario se inscribe → 201
+
+05 - Listado paginado
+     GET /api/events?status=published&page=2&limit=5
+```
+
+### Variables automáticas
+
+Durante la ejecución se almacenan automáticamente identificadores necesarios para los pasos posteriores:
+
+```text
+eventId
+ticketId
+foreignEventId
+capacityEventId
+capacityTicketId
+```
+
+También se genera dinámicamente una fecha futura mediante la variable:
+
+```text
+futureDate
+```
+
+De esta forma, las solicitudes posteriores utilizan los recursos creados durante el mismo flujo.
+
+### Cookies y autenticación
+
+Postman conserva automáticamente la cookie HTTP Only utilizada por la API:
+
+```text
+currentUser
+```
+
+Por este motivo, los requests de login deben ejecutarse en el orden indicado antes de acceder a endpoints protegidos.
+
+### Validaciones incluidas
+
+La colección incorpora tests de Postman para comprobar, entre otros puntos:
+
+```text
+200 OK
+201 Created
+401 Unauthorized
+403 Forbidden
+409 Conflict
+role público = user
+ausencia de password en respuestas
+uso de id en respuestas públicas
+cancelación lógica del ticket
+cancelledAt
+estructura de paginación
+data
+page
+limit
+total
+totalPages
+```
+
+Para una ejecución completa se recomienda utilizar una base de datos de prueba o eliminar previamente los usuarios y eventos de prueba generados por una ejecución anterior, ya que algunos casos verifican específicamente registros nuevos e inscripciones duplicadas.
+
+---
+
 ## Base de datos
 
 El proyecto utiliza **MongoDB Atlas** como base de datos y **Mongoose** para la definición de schemas y modelos.
