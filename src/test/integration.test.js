@@ -231,6 +231,11 @@ test(
                     response.body.payload.password,
                     undefined
                 );
+
+                assert.equal(
+                    sentEmails,
+                    1
+                );
             }
         );
 
@@ -798,6 +803,10 @@ test(
                     response.body.payload.role,
                     "user"
                 );
+                assert.equal(
+                    sentEmails,
+                    4
+                );
             }
         );
 
@@ -1013,11 +1022,11 @@ test(
 
 
         await t.test(
-            "se ejecutaron emails de confirmación y cancelación",
+            "se ejecutaron emails de registro, confirmación y cancelación",
             async () => {
                 assert.equal(
                     sentEmails,
-                    5
+                    7
                 );
             }
         );

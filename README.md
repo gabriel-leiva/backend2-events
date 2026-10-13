@@ -56,7 +56,7 @@ Actualmente incluye:
 
 - generación de códigos únicos de reserva;
 
-- notificación por email de confirmación y cancelación mediante Nodemailer;
+- notificación por email de confirmación de registro, inscripción y cancelación mediante Nodemailer;
 
 - transacciones de MongoDB para proteger la capacidad ante solicitudes concurrentes;
 
