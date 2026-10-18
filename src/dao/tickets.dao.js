@@ -26,9 +26,7 @@ export const findActiveTicketByUserAndEvent = async (
     const query = TicketModel.findOne({
         user: userId,
         event: eventId,
-        status: {
-            $in: ["confirmed", "pending"]
-        }
+        status: "active"
     });
 
     if (session) {
@@ -47,9 +45,7 @@ export const getReservedQuantityByEvent = async (
         {
             $match: {
                 event: eventId,
-                status: {
-                    $in: ["confirmed", "pending"]
-                }
+                status: "active"
             }
         },
         {

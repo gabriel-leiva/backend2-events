@@ -188,7 +188,7 @@ export const createTicketService = async (
                     {
                         user: userId,
                         event: event._id,
-                        status: "confirmed",
+                        status: "active",
                         quantity,
                         reservationCode
                     },

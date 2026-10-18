@@ -1702,7 +1702,21 @@
               ],
               "path": [
                 "api",
-                "events?status=published&page=2&limit=5"
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "published"
+                },
+                {
+                  "key": "page",
+                  "value": "2"
+                },
+                {
+                  "key": "limit",
+                  "value": "5"
+                }
               ]
             }
           },

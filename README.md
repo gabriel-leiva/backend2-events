@@ -56,7 +56,7 @@ Actualmente incluye:
 
 - generación de códigos únicos de reserva;
 
-- notificación por email de confirmación de registro, inscripción y cancelación mediante Nodemailer;
+- notificación por email al confirmar una inscripción mediante Nodemailer;
 
 - transacciones de MongoDB para proteger la capacidad ante solicitudes concurrentes;
 
@@ -1067,6 +1067,7 @@ con:
 |---|---|---|
 | Usuario común | `user@test.com` | `user` |
 | Organizador | `organizer@test.com` | `organizer` |
+| Segundo organizador | `organizer2@test.com` | `organizer` |
 | Administrador | `admin@test.com` | `admin` |
 
 Las contraseñas de los ejemplos son únicamente ilustrativas para un entorno local de prueba.
@@ -1918,9 +1919,7 @@ mediante referencias ObjectId.
 
 ```text
 
-confirmed
-
-pending
+active
 
 cancelled
 
@@ -1930,9 +1929,7 @@ Los estados activos para el cálculo de capacidad son:
 
 ```text
 
-confirmed
-
-pending
+active
 
 ```
 
@@ -2519,7 +2516,7 @@ inscripción
    ↓
 control de duplicado y cupo
    ↓
-ticket confirmado
+ticket activo
    ↓
 email de confirmación
    ↓
@@ -3259,7 +3256,7 @@ Al finalizar también se verifica:
 
 ```text
 
-tickets confirmados = 1
+tickets activos = 1
 emails de confirmación = 1
 
 ```

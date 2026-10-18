@@ -231,11 +231,6 @@ test(
                     response.body.payload.password,
                     undefined
                 );
-
-                assert.equal(
-                    sentEmails,
-                    1
-                );
             }
         );
 
@@ -570,7 +565,7 @@ test(
 
                 assert.equal(
                     response.body.payload.status,
-                    "confirmed"
+                    "active"
                 );
 
 
@@ -622,7 +617,7 @@ test(
                     response.body
                         .payload[0]
                         .status,
-                    "confirmed"
+                    "active"
                 );
 
 
@@ -803,10 +798,6 @@ test(
                     response.body.payload.role,
                     "user"
                 );
-                assert.equal(
-                    sentEmails,
-                    4
-                );
             }
         );
 
@@ -965,7 +956,7 @@ test(
 
                 assert.equal(
                     response.body.payload.status,
-                    "confirmed"
+                    "active"
                 );
             }
         );
@@ -1022,11 +1013,11 @@ test(
 
 
         await t.test(
-            "se ejecutaron emails de registro, confirmación y cancelación",
+            "se ejecutaron emails de confirmación y cancelación",
             async () => {
                 assert.equal(
                     sentEmails,
-                    7
+                    5
                 );
             }
         );
@@ -1230,7 +1221,7 @@ test(
         assert.equal(
             successfulResponse.body
                 .payload.status,
-            "confirmed"
+            "active"
         );
 
 
@@ -1258,7 +1249,7 @@ test(
             ticketsResponse.body
                 .payload[0]
                 .status,
-            "confirmed"
+            "active"
         );
 
 

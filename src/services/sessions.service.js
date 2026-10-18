@@ -16,10 +16,6 @@ import {
     UserDTO
 } from "../dto/user.dto.js";
 
-import {
-    sendRegistrationConfirmationEmail
-} from "./mail.service.js";
-
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -105,19 +101,6 @@ export const registerUserService = async ({
         password: hashedPassword,
         role: "user"
     });
-
-
-    try {
-        await sendRegistrationConfirmationEmail({
-            to: newUser.email,
-            userName: newUser.first_name
-        });
-    } catch (error) {
-        console.error(
-            "No se pudo enviar el email de confirmación de registro:",
-            error.message
-        );
-    }
 
 
     return newUser;

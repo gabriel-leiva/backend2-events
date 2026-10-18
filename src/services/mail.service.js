@@ -2,27 +2,6 @@ import { transporter } from "../config/mailer.config.js";
 import { config } from "../config/config.js";
 
 
-export const sendRegistrationConfirmationEmail = async ({
-    to,
-    userName
-}) => {
-    await transporter.sendMail({
-        from: config.mailFrom,
-        to,
-        subject: "Registro confirmado",
-        html: `
-            <h1>Registro confirmado</h1>
-
-            <p>
-                Hola ${userName},
-                tu cuenta fue registrada correctamente
-                en la plataforma de eventos.
-            </p>
-        `
-    });
-};
-
-
 export const sendTicketConfirmationEmail = async ({
     to,
     userName,
