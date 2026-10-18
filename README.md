@@ -3240,7 +3240,7 @@ Resultado esperado:
 ```text
 
 una inscripción → 201
-una inscripción → 400
+una inscripción → 409
 
 ```
 
